@@ -10,9 +10,9 @@ import lombok.Data;
 public class OrderBookUpdate {
 	private String MarketName;
 	private Long Nounce;
-	private List<OrderDelta> Buys;
-	private List<OrderDelta> Sells;
-	private List<OrderFill> Fills;
+	private List<OrderDeltaDTO> Buys;
+	private List<OrderDeltaDTO> Sells;
+	private List<OrderFillDTO> Fills;
 	
 	@JsonProperty("MarketName")
 	public String getMarketName() {
@@ -35,32 +35,32 @@ public class OrderBookUpdate {
 	}
 	
 	@JsonProperty("Buys")
-	public List<OrderDelta> getBuys() {
+	public List<OrderDeltaDTO> getBuys() {
 		return Buys;
 	}
 	
 	@JsonProperty("Buys")
-	public void setBuys(List<OrderDelta> buys) {
+	public void setBuys(List<OrderDeltaDTO> buys) {
 		Buys = buys;
 	}
 	
 	@JsonProperty("Sells")
-	public List<OrderDelta> getSells() {
+	public List<OrderDeltaDTO> getSells() {
 		return Sells;
 	}
 	
 	@JsonProperty("Sells")
-	public void setSells(List<OrderDelta> sells) {
+	public void setSells(List<OrderDeltaDTO> sells) {
 		Sells = sells;
 	}
 	
 	@JsonProperty("Fills")
-	public List<OrderFill> getFills() {
+	public List<OrderFillDTO> getFills() {
 		return Fills;
 	}
 	
 	@JsonProperty("Fills")
-	public void setFills(List<OrderFill> fills) {
+	public void setFills(List<OrderFillDTO> fills) {
 		Fills = fills;
 	}
 	

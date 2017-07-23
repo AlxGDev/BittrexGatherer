@@ -3,21 +3,22 @@ package org.alexgdev.bittrexgatherer.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
+
 @Data
-public class OrderFill {
-	private String OrderType;
+public class OrderDeltaDTO {
+	
+	private int Type;
 	private double Rate;
 	private double Quantity;
-	private String TimeStamp;
 	
-	@JsonProperty("OrderType")
-	public String getOrderType() {
-		return OrderType;
+	@JsonProperty("Type")
+	public int getType() {
+		return Type;
 	}
 	
-	@JsonProperty("OrderType")
-	public void setOrderType(String orderType) {
-		OrderType = orderType;
+	@JsonProperty("Type")
+	public void setType(int type) {
+		Type = type;
 	}
 	
 	@JsonProperty("Rate")
@@ -39,17 +40,6 @@ public class OrderFill {
 	public void setQuantity(double quantity) {
 		Quantity = quantity;
 	}
-	
-	@JsonProperty("TimeStamp")
-	public String getTimeStamp() {
-		return TimeStamp;
-	}
-	
-	@JsonProperty("TimeStamp")
-	public void setTimeStamp(String timeStamp) {
-		TimeStamp = timeStamp;
-	}
-	
 	
 	
 }
