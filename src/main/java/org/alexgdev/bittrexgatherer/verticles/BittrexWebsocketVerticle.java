@@ -1,6 +1,6 @@
 package org.alexgdev.bittrexgatherer.verticles;
 
-import org.alexgdev.bittrexgatherer.dto.MessageDTO;
+
 import org.alexgdev.bittrexgatherer.dto.OrderBookUpdate;
 import org.springframework.stereotype.Component;
 
@@ -9,20 +9,28 @@ import org.springframework.stereotype.Component;
 import io.vertx.core.AbstractVerticle;
 
 import io.vertx.core.http.HttpClient;
-
+import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
 
-@Component
-public class BittrexVerticle extends AbstractVerticle {
+public class BittrexWebsocketVerticle extends AbstractVerticle {
 
 	  private String tradingPair;
+	  private String handleFillsMessage;
+	  private String initOrderBookMessage;
+	  private String updateOrderBookMessage;
+	  private String calculatePriceMessage;
 	  private Long timerID;
 	  
 	  @Override
 	  public void start() throws Exception {
 		tradingPair = config().getString("tradingPair");
+		handleFillsMessage = BittrexPriceVerticle.HANDLE_FILLS+":"+tradingPair;
+		calculatePriceMessage = BittrexPriceVerticle.CALCULATE_MA+":"+tradingPair;
+		initOrderBookMessage = BittrexOrderBookVerticle.INIT_ORDERBOOK+":"+tradingPair;
+		updateOrderBookMessage = BittrexOrderBookVerticle.UPDATE_ORDERBOOK+":"+tradingPair;
+		
 		String endpoint = "/signalr/connect?transport=webSockets&clientProtocol="+config().getString("protocol")+
 						  "&connectionToken="+config().getString("connectionToken")+
 						  //"&connectionData="+config().getString("connectionData")+
@@ -39,33 +47,37 @@ public class BittrexVerticle extends AbstractVerticle {
 						.put("I", 1);
 		
 		
-		
-	    HttpClient client = vertx.createHttpClient();
+		HttpClientOptions options = new HttpClientOptions();
+		options.setMaxWebsocketFrameSize(300000);
+		options.setMaxWebsocketMessageSize(300000);
+	    HttpClient client = vertx.createHttpClient(options);
+	    
 	    client.websocket(80, "socket.bittrex.com", endpoint, 
 	    websocket -> {
 	      websocket.handler(data -> {
+	    	  //System.out.println("Received data " + data.toString("ISO-8859-1"));
 	    	  JsonObject msg = data.toJsonObject();
+	    	  if(msg.containsKey("R") && msg.getString("I").equals("1")){
+	    		  vertx.eventBus().<String>send(initOrderBookMessage, msg.getJsonObject("R").encodePrettily());
+	    	  }
 	    	  if(msg.containsKey("M") 
 	    		&& msg.getJsonArray("M").size() > 0 
 	    		&& msg.getJsonArray("M").getJsonObject(0).getString("M").equals("updateExchangeState")
 	    		&& msg.getJsonArray("M").getJsonObject(0).containsKey("A")
 	    		&& msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").size() > 0
 	    		&& msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").getJsonObject(0).getJsonArray("Fills").size()>0){
-	    		  MessageDTO dto = new MessageDTO();
-	    		  dto.setMessage(tradingPair);
+	    		  
 	    		  OrderBookUpdate payload = msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").getJsonObject(0).mapTo(OrderBookUpdate.class);
-	    		  dto.setPayload(payload);
 	    		  
-	    		  vertx.eventBus()
-	    	        .<String>send(BittrexPriceVerticle.HANDLE_FILLS, JsonObject.mapFrom(dto).encodePrettily());
-	    		  
-	    		  System.out.println("Received data " + data.toString("ISO-8859-1"));
+	    		  vertx.eventBus().<String>send(handleFillsMessage, JsonObject.mapFrom(payload).encodePrettily());
+
 	    	  } 
 	    	  
 	      });
 	      
+	      
+	      websocket.writeTextMessage(msg2.encodePrettily());
 	      websocket.writeTextMessage(msg1.encodePrettily());
-	      //websocket.writeTextMessage(msg2.encodePrettily());
 	      
 	    });
 	    
@@ -76,10 +88,8 @@ public class BittrexVerticle extends AbstractVerticle {
 	}
 	
 	private void calculateMovingAverage(){
-		MessageDTO dto = new MessageDTO();
-		dto.setMessage(tradingPair);
 		vertx.eventBus()
-        .<String>send(BittrexPriceVerticle.CALCULATE_MA, JsonObject.mapFrom(dto).encodePrettily(), result -> {
+        .<String>send(calculatePriceMessage, "", result -> {
             if (result.succeeded()) {
             	timerID = vertx.setTimer(5*60*1000, id -> {
       	    	  calculateMovingAverage();

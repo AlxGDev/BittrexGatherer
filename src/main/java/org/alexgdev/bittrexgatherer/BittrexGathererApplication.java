@@ -2,8 +2,10 @@ package org.alexgdev.bittrexgatherer;
 
 
 
+import org.alexgdev.bittrexgatherer.service.OrderFillService;
+import org.alexgdev.bittrexgatherer.verticles.BittrexOrderBookVerticle;
 import org.alexgdev.bittrexgatherer.verticles.BittrexPriceVerticle;
-import org.alexgdev.bittrexgatherer.verticles.BittrexVerticle;
+import org.alexgdev.bittrexgatherer.verticles.BittrexWebsocketVerticle;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -17,9 +19,8 @@ import io.vertx.core.json.JsonObject;
 @SpringBootApplication
 public class BittrexGathererApplication implements CommandLineRunner{
 	
-
 	@Autowired
-	private BittrexPriceVerticle priceVerticle;
+	private OrderFillService service;
 	
 	public static void main(String[] args) {
 		SpringApplication springApplication = new SpringApplicationBuilder()
@@ -52,7 +53,8 @@ public class BittrexGathererApplication implements CommandLineRunner{
 							.put("tid", tid);
 							
 		DeploymentOptions options = new DeploymentOptions().setConfig(config);
-		vertx.deployVerticle(priceVerticle);
-		vertx.deployVerticle(new BittrexVerticle(), options);
+		vertx.deployVerticle(new BittrexPriceVerticle(service), options);
+		vertx.deployVerticle(new BittrexOrderBookVerticle(), options);
+		vertx.deployVerticle(new BittrexWebsocketVerticle(), options);
 	}
 }
