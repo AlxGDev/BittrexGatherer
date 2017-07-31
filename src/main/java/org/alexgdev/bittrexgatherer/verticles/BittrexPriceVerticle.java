@@ -1,13 +1,11 @@
 package org.alexgdev.bittrexgatherer.verticles;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
+import org.alexgdev.bittrexgatherer.dto.MovingAverageDTO;
 import org.alexgdev.bittrexgatherer.dto.OrderBookUpdate;
 import org.alexgdev.bittrexgatherer.dto.OrderFillDTO;
 import org.alexgdev.bittrexgatherer.service.OrderFillService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
@@ -18,10 +16,13 @@ import io.vertx.core.shareddata.SharedData;
 
 public class BittrexPriceVerticle extends AbstractVerticle{
 	public static final String HANDLE_FILLS = "HANDLEFILLS";
-	public static final String CALCULATE_MA = "CALCULATEMA";
+	public static final String GET_MA = "GETMA";
 	
 	private ArrayList<OrderFillDTO> fillsList = new ArrayList<OrderFillDTO>();
 	private String tradingPair;
+	private Long timerID;
+	private int timeInterval;
+	private MovingAverageDTO dto;
 	
 	private OrderFillService service;
 	
@@ -32,15 +33,77 @@ public class BittrexPriceVerticle extends AbstractVerticle{
 	
 	@Override
     public void start() throws Exception {
-		tradingPair = config().getString("tradingPair");
         super.start();
+		tradingPair = config().getString("tradingPair");
+		timeInterval = 5*60*1000;
+		dto = new MovingAverageDTO();
+		dto.setTimeInterval(timeInterval);
+		dto.setTradingPair(tradingPair);
+
         vertx.eventBus()
                 .<String>consumer(HANDLE_FILLS+":"+tradingPair)
                 .handler(processFills(service));
         vertx.eventBus()
-        		.<String>consumer(CALCULATE_MA+":"+tradingPair)
-        		.handler(processPriceCalc());
+        	.<String>consumer(GET_MA+":"+tradingPair)
+        	.handler(getMovingAverage());
+        timerID = vertx.setTimer(timeInterval, id -> {
+	    	  calculateMovingAverage();
+	    });
     }
+	
+	private void calculateMovingAverage(){
+		vertx.<String>executeBlocking(future -> {
+	           
+            if(fillsList.size() == 0){
+            	future.complete();
+            } else {
+            	double movingAverage = 0;
+            	double volume = 0;
+            	double volumeWeightedMovingAverage = 0;
+            	for(OrderFillDTO o: fillsList){
+            		movingAverage+= o.getRate();
+            		volume += o.getQuantity();
+            		volumeWeightedMovingAverage += o.getRate() * o.getQuantity();
+            	}
+            	
+            	movingAverage = movingAverage/fillsList.size();
+            	volumeWeightedMovingAverage = volumeWeightedMovingAverage / volume;
+            	dto.setTimeStamp(System.currentTimeMillis());
+            	dto.setMovingAverage(movingAverage);
+            	dto.setVolumeWeightedMovingAverage(volumeWeightedMovingAverage);
+            	
+            	SharedData sd = vertx.sharedData();
+
+            	LocalMap<String, Double> map1 = sd.getLocalMap(tradingPair+" Price");
+            	map1.put("ma", movingAverage);
+            	map1.put("vwma", volumeWeightedMovingAverage);
+            	future.complete();
+            	
+            	
+            }
+			
+        }, result -> {
+            if (result.succeeded()) {
+                System.out.println("Done processing price: "+dto);
+                timerID = vertx.setTimer(timeInterval, id -> {
+        	    	  calculateMovingAverage();
+              	});
+            } else {
+            	System.out.println("Failed processing price");
+            	timerID = vertx.setTimer(timeInterval, id -> {
+        	    	  calculateMovingAverage();
+              	});
+            }
+        });
+
+	}
+	
+	private Handler<Message<String>> getMovingAverage(){
+		return msg -> {
+			String payload = JsonObject.mapFrom(dto).encodePrettily();
+			msg.reply(payload);
+		};
+	}
 	
 	private Handler<Message<String>> processFills(OrderFillService service) {
         return msg -> vertx.<String>executeBlocking(future -> {
@@ -64,45 +127,7 @@ public class BittrexPriceVerticle extends AbstractVerticle{
             }
         });
     }
-	
-	private Handler<Message<String>> processPriceCalc() {
-        return msg -> vertx.<String>executeBlocking(future -> {
-           
-            if(fillsList.size() == 0){
-            	future.complete();
-            } else {
-            	double movingAverage = 0;
-            	double volume = 0;
-            	double volumeWeightedAverage = 0;
-            	for(OrderFillDTO o: fillsList){
-            		movingAverage+= o.getRate();
-            		volume += o.getQuantity();
-            		volumeWeightedAverage += o.getRate() * o.getQuantity();
-            	}
-            	
-            	movingAverage = movingAverage/fillsList.size();
-            	volumeWeightedAverage = volumeWeightedAverage / volume;
-            	System.out.println(tradingPair+" MA: "+movingAverage+" VWMA: "+volumeWeightedAverage);
-            	
-            	SharedData sd = vertx.sharedData();
 
-            	LocalMap<String, Double> map1 = sd.getLocalMap(tradingPair+" Price");
-            	map1.put("ma", movingAverage);
-            	map1.put("vwma", volumeWeightedAverage);
-            	future.complete();
-            	
-            	
-            }
-			
-        }, result -> {
-            if (result.succeeded()) {
-                System.out.println("Done processing price");
-                msg.reply(result.result());
-            } else {
-            	System.out.println("Failed processing price");
-            	msg.reply(result.result());
-            }
-        });
-    }
+	
 
 }

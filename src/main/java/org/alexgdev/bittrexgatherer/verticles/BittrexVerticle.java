@@ -7,6 +7,15 @@ import org.springframework.stereotype.Component;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.ErrorHandler;
+import io.vertx.ext.web.handler.FaviconHandler;
+import io.vertx.ext.web.handler.StaticHandler;
+import io.vertx.ext.web.handler.sockjs.BridgeEventType;
+import io.vertx.ext.web.handler.sockjs.BridgeOptions;
+import io.vertx.ext.web.handler.sockjs.PermittedOptions;
+import io.vertx.ext.web.handler.sockjs.SockJSHandler;
+import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 
 @Component
 public class BittrexVerticle extends AbstractVerticle{
@@ -55,6 +64,34 @@ public class BittrexVerticle extends AbstractVerticle{
 				    System.out.println("Deployment failed!");    
 			  }
 		});
+		
+		Router router = Router.router(vertx);
+        
+        router.route().failureHandler(errorHandler());
+        router.route("/*").handler(StaticHandler.create("static").setCachingEnabled(false));
+        router.route().handler(FaviconHandler.create("static/favicon.ico"));
+
+        vertx.createHttpServer()
+            .requestHandler(router::accept)
+            .listen(config().getInteger("http.port", 8080));
+	 }
+	 
+	 private ErrorHandler errorHandler() {
+		    return ErrorHandler.create();
+	 }
+	 
+	 private SockJSHandler eventBusHandler() {
+		 	SockJSHandlerOptions options = new SockJSHandlerOptions().setHeartbeatInterval(2000);
+		    BridgeOptions boptions = new BridgeOptions()
+		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.UPDATE_ORDERBOOK+":[A-Z]+-[A-Z]+"))
+		    		.addInboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.GET_ORDERBOOK+":[A-Z]+-[A-Z]+"))
+		    		.addInboundPermitted(new PermittedOptions().setAddressRegex("getMovingAverage:[A-Z]+-[A-Z]+"));
+		    return SockJSHandler.create(vertx, options).bridge(boptions, event -> {
+		         if (event.type() == BridgeEventType.SOCKET_CREATED) {
+		            //logger.info("A socket was created");
+		        }
+		        event.complete(true);
+		    });
 	 }
 
 }
