@@ -1,0 +1,50 @@
+.nav, .pagination, .carousel, .panel-title a { cursor: pointer; }
+.thumb {
+    width: 24px;
+    height: 24px;
+    float: none;
+    position: relative;
+    top: 7px;
+    
+}
+
+.page-header {
+	padding-top: 40px;
+}
+
+form .progress {
+    line-height: 15px;
+}
+}
+
+.progress {
+    display: inline-block;
+    width: 100px;
+    border: 3px groove #CCC;
+}
+
+.progress div {
+    font-size: smaller;
+    background: orange;
+    width: 0;
+}
+
+.dropdown.dropdown-scroll .dropdown-menu {
+    max-height: 200px;
+    width: 360px;
+    overflow: auto;
+}
+.search-control {
+    padding: 5px 10px;
+}
+a.deco-none {
+    color: inherit;
+    text-decoration:none;
+}
+
+.sortorder:after {
+  content: '\25b2';   
+}
+.sortorder.reverse:after {
+  content: '\25bc';   
+}

@@ -17,6 +17,7 @@ import io.vertx.core.json.JsonObject;
 public class BittrexOrderBookVerticle extends AbstractVerticle{
 	
 	public static final String INIT_ORDERBOOK = "INITORDERBOOK";
+	public static final String ORDERBOOK_READY = "ORDERBOOKREADY";
 	public static final String UPDATE_ORDERBOOK = "UPDATEORDERBOOK";
 	public static final String GET_ORDERBOOK = "GETORDERBOOK";
 	
@@ -33,9 +34,9 @@ public class BittrexOrderBookVerticle extends AbstractVerticle{
         vertx.eventBus()
                 .<String>consumer(INIT_ORDERBOOK+":"+tradingPair)
                 .handler(processInit());
-        vertx.eventBus()
+        /*vertx.eventBus()
         		.<String>consumer(UPDATE_ORDERBOOK+":"+tradingPair)
-        		.handler(processOrderBookUpdate());
+        		.handler(processOrderBookUpdate()); */
         vertx.eventBus()
         	.<String>consumer(GET_ORDERBOOK+":"+tradingPair)
         	.handler(getOrderBook());
@@ -48,11 +49,11 @@ public class BittrexOrderBookVerticle extends AbstractVerticle{
 	            JsonArray buys = payload.getJsonArray("Buys");
 	            
 				for(int i = 0; i<buys.size();i++){
-					orderBook.getBuyOrders().put(buys.getJsonObject(0).getDouble("Rate"), buys.getJsonObject(0).getDouble("Quantity"));
+					orderBook.getBuyOrders().put(buys.getJsonObject(i).getDouble("Rate"), buys.getJsonObject(i).getDouble("Quantity"));
 				}
 				JsonArray sells = payload.getJsonArray("Sells");
 				for(int i = 0; i<buys.size();i++){
-					orderBook.getSellOrders().put(sells.getJsonObject(0).getDouble("Rate"), sells.getJsonObject(0).getDouble("Quantity"));
+					orderBook.getSellOrders().put(sells.getJsonObject(i).getDouble("Rate"), sells.getJsonObject(i).getDouble("Quantity"));
 				}
 				future.complete();
         	} catch(Exception e){
@@ -61,6 +62,7 @@ public class BittrexOrderBookVerticle extends AbstractVerticle{
         	}
         }, result -> {
             if (result.succeeded()) {
+            	vertx.eventBus().<String>send(ORDERBOOK_READY+":"+tradingPair, "ready");
                 System.out.println("Done setting up Order Book: BuyPrice "+orderBook.getBuyOrders().lastKey()+" Quantity: "+orderBook.getBuyOrders().get(orderBook.getBuyOrders().lastKey()));
             } else {
             	System.out.println("Failed setting up Order Book");
@@ -99,7 +101,7 @@ public class BittrexOrderBookVerticle extends AbstractVerticle{
 	
 	private Handler<Message<String>> getOrderBook(){
 		return msg -> {
-			String payload = JsonObject.mapFrom(orderBook).encodePrettily();
+			String payload = JsonObject.mapFrom(orderBook).toString();
 			msg.reply(payload);
 		};
 	}

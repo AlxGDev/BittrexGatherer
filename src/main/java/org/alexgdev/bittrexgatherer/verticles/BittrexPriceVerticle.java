@@ -100,7 +100,7 @@ public class BittrexPriceVerticle extends AbstractVerticle{
 	
 	private Handler<Message<String>> getMovingAverage(){
 		return msg -> {
-			String payload = JsonObject.mapFrom(dto).encodePrettily();
+			String payload = JsonObject.mapFrom(dto).encode();
 			msg.reply(payload);
 		};
 	}

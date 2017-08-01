@@ -66,7 +66,7 @@ public class BittrexVerticle extends AbstractVerticle{
 		});
 		
 		Router router = Router.router(vertx);
-        
+		router.route("/eventbus/*").handler(eventBusHandler());
         router.route().failureHandler(errorHandler());
         router.route("/*").handler(StaticHandler.create("static").setCachingEnabled(false));
         router.route().handler(FaviconHandler.create("static/favicon.ico"));
@@ -84,12 +84,15 @@ public class BittrexVerticle extends AbstractVerticle{
 		 	SockJSHandlerOptions options = new SockJSHandlerOptions().setHeartbeatInterval(2000);
 		    BridgeOptions boptions = new BridgeOptions()
 		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.UPDATE_ORDERBOOK+":[A-Z]+-[A-Z]+"))
+		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.ORDERBOOK_READY+":[A-Z]+-[A-Z]+"))
 		    		.addInboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.GET_ORDERBOOK+":[A-Z]+-[A-Z]+"))
 		    		.addInboundPermitted(new PermittedOptions().setAddressRegex("getMovingAverage:[A-Z]+-[A-Z]+"));
 		    return SockJSHandler.create(vertx, options).bridge(boptions, event -> {
 		         if (event.type() == BridgeEventType.SOCKET_CREATED) {
-		            //logger.info("A socket was created");
-		        }
+		            System.out.println("A socket was created!");
+		         } else if (event.type() == BridgeEventType.SOCKET_CLOSED){
+		        	 System.out.println("A socket was closed!");
+		         }
 		        event.complete(true);
 		    });
 	 }

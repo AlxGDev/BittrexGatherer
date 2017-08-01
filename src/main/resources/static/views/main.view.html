@@ -1,0 +1,41 @@
+
+
+<div class = "container">
+	<div class="page-header" id="banner">
+	  <h1><center>{{vm.tradingPair}}</center></h1>
+	</div>
+	<div class = "jumbotron">
+	
+		<div class="alert alert-danger" ng-hide = "vm.error.hidden">
+		  <strong>Error!</strong> {{vm.error.message}}
+		</div>
+		<ul class="list-group">
+	    <li class="list-group-item" >
+	    	<div class="row">
+		      
+		      <div class="col-md-2">
+		        <b><h3><button ng-click="vm.sortBy('key')">Price</button></h3><b>
+		        <span class="sortorder" ng-show="vm.propertyName === 'key'" ng-class="{reverse: vm.reverse}"></span>
+		      </div>
+		      <div class="col-md-2">
+		       <b><h3>Volume</h3><b>
+		      </div>
+		      
+			 </div>
+		</li>
+		 <li class="list-group-item" ng-repeat="key in vm.getKeys(vm.orderBook.buyOrders) | orderBy:vm.propertyName:vm.reverse" >
+	    	<div class="row">
+		      
+		      <div class="col-md-2">
+		        {{key}}
+		      </div>
+		      <div class="col-md-2">
+		        {{vm.orderBook.buyOrders[key]}}
+		      </div>
+		      
+			 </div>
+			 </a>
+		</li>
+	  </ul>
+	</div>
+</div>
