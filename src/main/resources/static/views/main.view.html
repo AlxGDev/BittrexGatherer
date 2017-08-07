@@ -9,33 +9,49 @@
 		<div class="alert alert-danger" ng-hide = "vm.error.hidden">
 		  <strong>Error!</strong> {{vm.error.message}}
 		</div>
-		<ul class="list-group">
-	    <li class="list-group-item" >
+		
+	   <div class="container">
 	    	<div class="row">
+		      <div class = "col-xs-6">
+		      	<h2 class="sub-header">Buy Orders</h2>
+		      	<div class="table-responsive">
+			      <table class="table table-striped">
+	    			<thead>
+				      <tr>
+				        <th class="col-md-1 sortorder" ng-click="vm.sortBuysBy('key')" ng-class="{reverse: vm.buysReverse}"> Buy Price</th>
+				        <th class="col-md-1">Buy Volume</th>
+				      </tr>
+				    </thead>
+				    <tbody>
+				      <tr ng-repeat="key in vm.getKeys(vm.orderBook.buyOrders) | orderBy:vm.buysPropertyname:vm.buysReverse">
+				        <td class="col-md-1"> {{key}}</td>
+				        <td class="col-md-1"> {{vm.orderBook.buyOrders[key]}}</td>
+				      </tr>
+				   </table>
+				   </div>
+			  </div>
+			  <div class = "col-xs-6">
+		      <h2 class="sub-header">Sell Orders</h2>
+		      	<div class="table-responsive">
+			      <table class="table table-striped">
+	    			<thead>
+				      <tr>
+				        <th class="col-md-1 sortorder" ng-click="vm.sortSellsBy('key')" ng-class="{reverse: vm.sellsReverse}"> Sell Price</th>
+				        <th class="col-md-1">Sell Volume</th>
+				      </tr>
+				    </thead>
+				    <tbody>
+				      <tr ng-repeat="key in vm.getKeys(vm.orderBook.sellOrders) | orderBy:vm.sellPropertyName:vm.sellsReverse">
+				        <td class="col-md-1"> {{key}}</td>
+				        <td class="col-md-1"> {{vm.orderBook.sellOrders[key]}}</td>
+				      </tr>
+				      </table>
+				      </div>
+			  </div>
 		      
-		      <div class="col-md-2">
-		        <b><h3><button ng-click="vm.sortBy('key')">Price</button></h3><b>
-		        <span class="sortorder" ng-show="vm.propertyName === 'key'" ng-class="{reverse: vm.reverse}"></span>
-		      </div>
-		      <div class="col-md-2">
-		       <b><h3>Volume</h3><b>
-		      </div>
-		      
-			 </div>
-		</li>
-		 <li class="list-group-item" ng-repeat="key in vm.getKeys(vm.orderBook.buyOrders) | orderBy:vm.propertyName:vm.reverse" >
-	    	<div class="row">
-		      
-		      <div class="col-md-2">
-		        {{key}}
-		      </div>
-		      <div class="col-md-2">
-		        {{vm.orderBook.buyOrders[key]}}
-		      </div>
-		      
-			 </div>
-			 </a>
-		</li>
-	  </ul>
+		     </div>
+			</div> 
+		
+	
 	</div>
 </div>

@@ -101,7 +101,7 @@ public class BittrexOrderBookVerticle extends AbstractVerticle{
 	
 	private Handler<Message<String>> getOrderBook(){
 		return msg -> {
-			String payload = JsonObject.mapFrom(orderBook).toString();
+			String payload = orderBook.convertToJson().encode();
 			msg.reply(payload);
 		};
 	}

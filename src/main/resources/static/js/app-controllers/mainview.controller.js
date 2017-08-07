@@ -13,8 +13,9 @@
         		buyOrders: {},
         		sellOrders: {}
         };
-        vm.propertyName = "id";
-        vm.sortBy = sortBy;
+        vm.buysPropertyName = "id";
+        vm.sortBuysBy = sortBuysBy;
+        vm.sortSellsBy = sortSellsBy;
         vm.getKeys = getKeys
 
 		
@@ -71,6 +72,7 @@
 			 
 		}
 		function setOrderBook(msg){
+			vm.buysReverse = true;
 			var obj = JSON.parse(msg);
 			console.log("A");
 			vm.orderBook.buyOrders = obj.buyOrders;
@@ -79,11 +81,14 @@
 			$scope.$apply()
 		}
 		
-		function sortBy(propertyName) {
-		    vm.reverse = (vm.propertyName === propertyName) ? !vm.reverse : false;
-		    vm.propertyName = propertyName;
+		function sortBuysBy(propertyName) {
+		    vm.buysReverse = (vm.buysPropertyName === propertyName) ? !vm.buysReverse : false;
+		    vm.buysPropertyName = propertyName;
 		};
-		
+		function sortSellsBy(propertyName) {
+		    vm.sellsReverse = (vm.sellsPropertyName === propertyName) ? !vm.sellsReverse : false;
+		    vm.sellsPropertyName = propertyName;
+		};
 
 		function showAlert(message){
 			vm.error.message = message;

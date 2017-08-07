@@ -81,6 +81,7 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 		    	  //System.out.println("Received data " + data.toString("ISO-8859-1"));
 		    	  JsonObject msg = data.toJsonObject();
 		    	  if(msg.containsKey("R") && msg.getString("I").equals("1")){
+		    		  
 		    		  vertx.eventBus().<String>send(initOrderBookMessage, msg.getJsonObject("R").encode());
 		    	  }
 		    	  if(msg.containsKey("M") 
