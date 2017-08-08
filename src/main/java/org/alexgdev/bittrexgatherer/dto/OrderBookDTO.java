@@ -18,12 +18,12 @@ public class OrderBookDTO {
 		JsonObject buyOrders = new JsonObject();
 		for(Entry<Double, Double> entry: this.buyOrders.entrySet()){
 			
-			buyOrders.put(String.format("%.9f", entry.getKey().doubleValue()), entry.getValue().doubleValue());
+			buyOrders.put(String.format("%.8f", entry.getKey().doubleValue()), entry.getValue().doubleValue());
 		}
 		json.put("buyOrders", buyOrders);
 		JsonObject sellOrders = new JsonObject();
 		for(Entry<Double, Double> entry: this.sellOrders.entrySet()){
-			sellOrders.put(String.format("%.9f", entry.getKey().doubleValue()), entry.getValue().doubleValue());
+			sellOrders.put(String.format("%.8f", entry.getKey().doubleValue()), entry.getValue().doubleValue());
 		}
 		json.put("sellOrders", sellOrders);
 		return json;

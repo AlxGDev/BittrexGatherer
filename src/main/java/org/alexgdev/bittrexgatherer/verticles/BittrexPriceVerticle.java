@@ -41,7 +41,7 @@ public class BittrexPriceVerticle extends AbstractVerticle{
 		dto.setTradingPair(tradingPair);
 
         vertx.eventBus()
-                .<String>consumer(HANDLE_FILLS+":"+tradingPair)
+                .<JsonObject>consumer(HANDLE_FILLS+":"+tradingPair)
                 .handler(processFills(service));
         vertx.eventBus()
         	.<String>consumer(GET_MA+":"+tradingPair)
@@ -84,7 +84,7 @@ public class BittrexPriceVerticle extends AbstractVerticle{
 			
         }, result -> {
             if (result.succeeded()) {
-                System.out.println("Done processing price: "+dto);
+                //System.out.println("Done processing price: "+dto);
                 timerID = vertx.setTimer(timeInterval, id -> {
         	    	  calculateMovingAverage();
               	});
@@ -105,10 +105,10 @@ public class BittrexPriceVerticle extends AbstractVerticle{
 		};
 	}
 	
-	private Handler<Message<String>> processFills(OrderFillService service) {
+	private Handler<Message<JsonObject>> processFills(OrderFillService service) {
         return msg -> vertx.<String>executeBlocking(future -> {
         	try{
-	            OrderBookUpdate update = new JsonObject(msg.body()).mapTo(OrderBookUpdate.class);
+	            OrderBookUpdate update = msg.body().mapTo(OrderBookUpdate.class);
 	            
 				for(OrderFillDTO fill : update.getFills()){
 					fillsList.add(fill);
@@ -121,7 +121,7 @@ public class BittrexPriceVerticle extends AbstractVerticle{
         	}
         }, result -> {
             if (result.succeeded()) {
-                System.out.println("Done processing fills");
+                //System.out.println("Done processing fills");
             } else {
             	System.out.println("Failed processing fills");
             }

@@ -82,19 +82,20 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 		    	  JsonObject msg = data.toJsonObject();
 		    	  if(msg.containsKey("R") && msg.getString("I").equals("1")){
 		    		  
-		    		  vertx.eventBus().<String>send(initOrderBookMessage, msg.getJsonObject("R").encode());
+		    		  vertx.eventBus().<JsonObject>publish(initOrderBookMessage, msg.getJsonObject("R"));
 		    	  }
 		    	  if(msg.containsKey("M") 
 		    		&& msg.getJsonArray("M").size() > 0 
 		    		&& msg.getJsonArray("M").getJsonObject(0).getString("M").equals("updateExchangeState")
 		    		&& msg.getJsonArray("M").getJsonObject(0).containsKey("A")
 		    		&& msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").size() > 0){
-		    		  
-		    		  OrderBookUpdate payload = msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").getJsonObject(0).mapTo(OrderBookUpdate.class);
+		    		  JsonObject payload = msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").getJsonObject(0);
+		    		  //OrderBookUpdate payload = msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").getJsonObject(0).mapTo(OrderBookUpdate.class);
 		    		  if(msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").getJsonObject(0).getJsonArray("Fills").size()>0){
-		    			  vertx.eventBus().<String>send(handleFillsMessage, JsonObject.mapFrom(payload).encode());
+		    			  vertx.eventBus().<JsonObject>publish(handleFillsMessage, payload);
 		    		  }
-		    		  	  vertx.eventBus().<String>send(updateOrderBookMessage, JsonObject.mapFrom(payload).encode());
+		    		  
+		    		  	  vertx.eventBus().<JsonObject>publish(updateOrderBookMessage, payload);
 		    		  
 		    		 
 		    	  } 

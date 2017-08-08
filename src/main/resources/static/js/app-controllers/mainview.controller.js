@@ -47,21 +47,25 @@
 			  vm.eb.onopen = function() {
 
 				  // set a handler to receive a message
-				  /*vm.eb.registerHandler('UPDATEORDERBOOK:BTC-ARK', function(error, message) {
-				    console.log('received a message: ' + JSON.stringify(message));
-				  }); */
+				  vm.eb.registerHandler('UPDATEORDERBOOK:BTC-ARK', function(error, message) {
+				    //console.log('received a message: ' + JSON.stringify(message));
+				    processOrderBookUpdate(message.body)
+				  }); 
 				  vm.eb.registerHandler('ORDERBOOKREADY:BTC-ARK', function(error, message) {
 					    console.log('received a message: ' + JSON.stringify(message));
 					    vm.eb.send("GETORDERBOOK:BTC-ARK",
 					              "", function(response, json) {
+					    	 //console.log('received a message: ' + JSON.stringify(json));
 					    				setOrderBook(json.body);
+					    				
 					    			});
 				  });
 				  
 				  vm.eb.send("GETORDERBOOK:BTC-ARK",
 			              "", function(response, json) {
-					  
+					  //console.log('received a message: ' + JSON.stringify(json));
 		              setOrderBook(json.body);
+		              
 		              
 				  });
 
@@ -71,13 +75,38 @@
 			 };
 			 
 		}
-		function setOrderBook(msg){
+		function setOrderBook(body){
 			vm.buysReverse = true;
-			var obj = JSON.parse(msg);
-			console.log("A");
-			vm.orderBook.buyOrders = obj.buyOrders;
-			vm.orderBook.sellOrders = obj.sellOrders;
-			vm.tradingPair = obj.tradingPair;
+			
+			vm.orderBook.buyOrders = body.buyOrders;
+			vm.orderBook.sellOrders = body.sellOrders;
+			vm.tradingPair = body.tradingPair;
+			$scope.$apply()
+		}
+		
+		function processOrderBookUpdate(body){
+			for(var i = 0; i < body.Buys.length; i++){
+				
+				var key = body.Buys[i].Rate.toString().replace(".",",");
+			   
+			    if(body.Buys[i].Quantity == 0){
+			    	delete vm.orderBook.buyOrders[key];
+			    } else {
+			    	 vm.orderBook.buyOrders[key] = body.Buys[i].Quantity;
+			    }
+			    
+			}
+			for(var j = 0; j < body.Sells.length; i++){
+				
+				var key = body.Sells[i].Rate.toString().replace(".",",");
+			   
+			    if(body.Sells[j].Quantity == 0){
+			    	delete vm.orderBook.sellOrders[key];
+			    } else {
+			    	 vm.orderBook.sellOrders[key] = body.Sells[j].Quantity;
+			    }
+			    
+			}
 			$scope.$apply()
 		}
 		
