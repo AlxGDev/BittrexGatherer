@@ -5,8 +5,7 @@ import lombok.Data;
 @Data
 public class MovingAverageDTO {
 	private String tradingPair;
-	private long timeStamp;
-	private int timeInterval;
-	private double movingAverage;
-	private double volumeWeightedMovingAverage;
+	private Long timeStamp;
+	private Double movingAverage;
+	//private Double volumeWeightedMovingAverage;
 }

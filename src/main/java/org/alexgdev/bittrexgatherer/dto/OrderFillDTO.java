@@ -6,8 +6,8 @@ import lombok.Data;
 @Data
 public class OrderFillDTO {
 	private String orderType;
-	private double rate;
-	private double quantity;
+	private Double rate;
+	private Double quantity;
 	private String timeStamp;
 	
 	@JsonProperty("OrderType")
