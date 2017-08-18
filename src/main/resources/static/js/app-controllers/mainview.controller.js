@@ -48,7 +48,7 @@
 
 				  // set a handler to receive a message
 				  vm.eb.registerHandler('UPDATEORDERBOOK:BTC-ARK', function(error, message) {
-				    //console.log('received a message: ' + JSON.stringify(message));
+				    console.log('received a message: ' + JSON.stringify(message));
 				    processOrderBookUpdate(message.body)
 				  }); 
 				  vm.eb.registerHandler('ORDERBOOKREADY:BTC-ARK', function(error, message) {
@@ -87,7 +87,7 @@
 		function processOrderBookUpdate(body){
 			for(var i = 0; i < body.Buys.length; i++){
 				
-				var key = body.Buys[i].Rate.toString().replace(".",",");
+				var key = body.Buys[i].Rate.toFixed(8).toString().replace(".",",");
 			   
 			    if(body.Buys[i].Quantity == 0){
 			    	delete vm.orderBook.buyOrders[key];
@@ -96,9 +96,9 @@
 			    }
 			    
 			}
-			for(var j = 0; j < body.Sells.length; i++){
+			for(var j = 0; j < body.Sells.length; j++){
 				
-				var key = body.Sells[i].Rate.toString().replace(".",",");
+				var key = body.Sells[j].Rate.toFixed(8).toString().replace(".",",");
 			   
 			    if(body.Sells[j].Quantity == 0){
 			    	delete vm.orderBook.sellOrders[key];

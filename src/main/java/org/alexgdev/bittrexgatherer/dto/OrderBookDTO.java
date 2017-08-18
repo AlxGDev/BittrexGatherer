@@ -1,5 +1,6 @@
 package org.alexgdev.bittrexgatherer.dto;
 
+import java.text.DecimalFormat;
 import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -16,14 +17,15 @@ public class OrderBookDTO {
 		JsonObject json = new JsonObject();
 		json.put("tradingPair", tradingPair);
 		JsonObject buyOrders = new JsonObject();
+		DecimalFormat df=new DecimalFormat("0.00000000");
 		for(Entry<Double, Double> entry: this.buyOrders.entrySet()){
 			
-			buyOrders.put(String.format("%.8f", entry.getKey().doubleValue()), entry.getValue().doubleValue());
+			buyOrders.put(df.format(entry.getKey().doubleValue()), entry.getValue().doubleValue());
 		}
 		json.put("buyOrders", buyOrders);
 		JsonObject sellOrders = new JsonObject();
 		for(Entry<Double, Double> entry: this.sellOrders.entrySet()){
-			sellOrders.put(String.format("%.8f", entry.getKey().doubleValue()), entry.getValue().doubleValue());
+			sellOrders.put(df.format(entry.getKey().doubleValue()), entry.getValue().doubleValue());
 		}
 		json.put("sellOrders", sellOrders);
 		return json;

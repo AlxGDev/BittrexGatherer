@@ -1,7 +1,11 @@
 package org.alexgdev.bittrexgatherer.util;
 
+import lombok.Data;
+
+@Data
 public class RSI {
 	
+	private String id;
 	private int period;
 	private Double lastPrice;
 	private Double avgGain;
@@ -9,7 +13,8 @@ public class RSI {
 	private Double sumGain;
 	private Double sumLoss;
 	private int countCollected;
-	public RSI(int period) {
+	public RSI(int period, String id) {
+		this.id = id;
 		this.sumGain = 0.0;
 		this.lastPrice = 0.0;
 		this.sumLoss = 0.0;
@@ -46,13 +51,19 @@ public class RSI {
 		}
 	}
 	
-	public double getRSI(){
-		if(countCollected <= period){
+	public Double getRSI(){
+		if(avgLoss == 0){
+			return 100.0;
+		} else if (avgGain == 0){
+			return 0.0;
+		}
+		return 100 - (100/(1+(avgGain/avgLoss)));
+		/*if(countCollected <= period){
 			//not enough data
 			return -1.0;
 		} else {
 			return 100 - (100/(1+(avgGain/avgLoss)));
-		}
+		}*/
 	}
 	
 
