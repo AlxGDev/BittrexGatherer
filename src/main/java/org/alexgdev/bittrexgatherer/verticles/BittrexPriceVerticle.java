@@ -11,6 +11,7 @@ import org.alexgdev.bittrexgatherer.service.OrderFillService;
 import org.alexgdev.bittrexgatherer.util.MarketTick;
 import org.alexgdev.bittrexgatherer.util.MovingAverage;
 import org.alexgdev.bittrexgatherer.util.RSI;
+import org.alexgdev.bittrexgatherer.util.VolumeWeightedMovingAverage;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
@@ -30,6 +31,7 @@ public class BittrexPriceVerticle extends AbstractVerticle{
 	private int timeInterval1;
 	private MarketTick tick1;
 	private MovingAverage ma_1;
+	private VolumeWeightedMovingAverage vwma_1;
 	private RSI rsi_1;
 	
 	//10min tick
@@ -50,6 +52,7 @@ public class BittrexPriceVerticle extends AbstractVerticle{
 		super();
 		this.service = service;
 		ma_1 = new MovingAverage(10, "ma_1");
+		vwma_1 = new VolumeWeightedMovingAverage(10, "vwma_1");
 		rsi_1 = new RSI(14, "rsi_1");
 		tick1 = new MarketTick();
 		timeInterval1 = 5*60*1000;
@@ -74,22 +77,30 @@ public class BittrexPriceVerticle extends AbstractVerticle{
         	.<String>consumer(GET_MA+":"+tradingPair)
         	.handler(getMovingAverage());
         timers.put("timer1",  vertx.setTimer(timeInterval1, id -> {
-	    	  calculateIndicators(tick1, ma_1, rsi_1, timeInterval1, "timer1");
+	    	  calculateIndicators(tick1, ma_1, vwma_1, rsi_1, timeInterval1, "timer1");
 	    }));
     }
 	
-	private void calculateIndicators(MarketTick tick, MovingAverage avg, RSI rsi, int interval, String timerid){
+	private void calculateIndicators(MarketTick tick, MovingAverage ma, VolumeWeightedMovingAverage vwma, RSI rsi, int interval, String timerid){
 		vertx.<String>executeBlocking(future -> {
-	           
-            	avg.add(tick.getAverage());
-            	rsi.add(tick.getAverage());
-            	tick.clearPeriod();
-            	SharedData sd = vertx.sharedData();
+	            System.out.println(tick);
+				if(tick.getAverage() > 0.0){
+	        	   ma.add(tick.getAverage());
+	               rsi.add(tick.getAverage());
+	               vwma.add(tick.getAverage(), tick.getVolume());
+	               SharedData sd = vertx.sharedData();
+	               LocalMap<String, Double> map1 = sd.getLocalMap(tradingPair+" Price");
+	               map1.put(ma.getId(), ma.getAverage());
+	               map1.put(rsi.getId(), rsi.getRSI());
+	               map1.put(vwma.getId(), vwma.getAverage());
+				}
             	
-            	LocalMap<String, Double> map1 = sd.getLocalMap(tradingPair+" Price");
-            	map1.put(avg.getId(), avg.getAverage());
-            	map1.put(rsi.getId(), rsi.getRSI());
-            	System.out.println("MA: "+String.format("%.8f", avg.getAverage()));
+            	tick.clearPeriod();
+            	
+            	
+            	
+            	System.out.println("MA: "+String.format("%.8f", ma.getAverage()));
+            	System.out.println("VWMA: "+String.format("%.8f", vwma.getAverage()));
             	System.out.println("RSI: "+String.format("%.8f", rsi.getRSI()));
             	future.complete();
             	
@@ -100,13 +111,13 @@ public class BittrexPriceVerticle extends AbstractVerticle{
             if (result.succeeded()) {
                 //System.out.println("Done processing price: "+dto);
             	timers.put(timerid,vertx.setTimer(interval, id -> {
-            		calculateIndicators(tick, avg, rsi, interval, timerid);
+            		calculateIndicators(tick, ma, vwma, rsi, interval, timerid);
               	}));
             } else {
             	System.out.println("Failed calculating Indicators");
             	result.cause().printStackTrace();
             	timers.put(timerid,vertx.setTimer(interval, id -> {
-            		calculateIndicators(tick, avg, rsi, interval, timerid);
+            		calculateIndicators(tick, ma, vwma, rsi, interval, timerid);
             	}));
             }
         });
