@@ -31,7 +31,6 @@ public class VolumeWeightedMovingAverage implements MovingStatistic{
         windowPrice.add(price);
         windowVolume.add(volume);
 
-        windowPrice.add(price);
         if (windowPrice.size() == 1)
         {
             avg = price;
@@ -51,7 +50,7 @@ public class VolumeWeightedMovingAverage implements MovingStatistic{
         } else {
         	Double oldPriceValue =windowPrice.remove();
         	Double oldVolumeValue = windowVolume.remove();
-        	sumTPV = sumTPV - oldPriceValue;
+        	sumTPV = sumTPV - (oldPriceValue*oldVolumeValue);
             sumV = sumV - oldVolumeValue;
         	avg = sumTPV/sumV;
         	variance = variance + (price-avg + oldPriceValue-avg)*(price - oldPriceValue)/(period-1);
