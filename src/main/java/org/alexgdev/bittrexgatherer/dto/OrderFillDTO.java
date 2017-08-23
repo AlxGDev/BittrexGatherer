@@ -1,10 +1,12 @@
 package org.alexgdev.bittrexgatherer.dto;
 
+import org.alexgdev.bittrexgatherer.util.PriceEvent;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
 @Data
-public class OrderFillDTO {
+public class OrderFillDTO implements PriceEvent{
 	private String orderType;
 	private Double rate;
 	private Double quantity;
@@ -21,7 +23,7 @@ public class OrderFillDTO {
 	}
 	
 	@JsonProperty("Rate")
-	public double getRate() {
+	public Double getRate() {
 		return rate;
 	}
 	
@@ -31,7 +33,7 @@ public class OrderFillDTO {
 	}
 	
 	@JsonProperty("Quantity")
-	public double getQuantity() {
+	public Double getQuantity() {
 		return quantity;
 	}
 	

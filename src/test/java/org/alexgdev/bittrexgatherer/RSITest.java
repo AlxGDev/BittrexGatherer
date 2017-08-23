@@ -2,7 +2,7 @@ package org.alexgdev.bittrexgatherer;
 
 import static org.junit.Assert.*;
 
-import org.alexgdev.bittrexgatherer.util.RSI;
+import org.alexgdev.bittrexgatherer.indicators.RSI;
 import org.junit.Before;
 import org.junit.Test;
 

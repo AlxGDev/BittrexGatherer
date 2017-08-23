@@ -1,4 +1,4 @@
-package org.alexgdev.bittrexgatherer.util;
+package org.alexgdev.bittrexgatherer.indicators;
 
 import lombok.Data;
 

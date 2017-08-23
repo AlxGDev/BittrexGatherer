@@ -5,7 +5,7 @@ import org.alexgdev.bittrexgatherer.dto.OrderFillDTO;
 import lombok.Data;
 
 @Data
-public class MarketTick {
+public class MarketTick implements PriceEvent{
 	
 	private Double high = 0.0;
 	private Double low = 0.0;
@@ -20,14 +20,19 @@ public class MarketTick {
 		}
 		volume += dto.getQuantity();
 	}
-	public Double getAverage(){
-		return (high+low)/2;
-	}
 	
 	public void clearPeriod(){
 		high = 0.0;
 		low = 0.0;
 		volume = 0.0;
+	}
+	@Override
+	public Double getRate() {
+		return (high+low)/2;
+	}
+	@Override
+	public Double getQuantity() {
+		return volume;
 	}
 
 }
