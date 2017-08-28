@@ -48,7 +48,7 @@ public class VolumeWeightedMovingAverage implements MovingStatistic{
             stdDev = Math.sqrt(variance);
 
         } else {
-        	Double oldPriceValue =windowPrice.remove();
+        	Double oldPriceValue = windowPrice.remove();
         	Double oldVolumeValue = windowVolume.remove();
         	sumTPV = sumTPV - (oldPriceValue*oldVolumeValue);
             sumV = sumV - oldVolumeValue;

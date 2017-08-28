@@ -1,14 +1,15 @@
-﻿(function () {
+﻿
+
+(function () {
     'use strict';
 
     angular
-        .module('app', ['ui.router','ui.bootstrap', 'chart.js'])
+        .module('app', ['ui.router','ui.bootstrap'])
         .config(config)
         .run(run);
    
-   config.$inject = ['$stateProvider', '$urlRouterProvider', 'ChartJsProvider'];
-   function config($stateProvider, $urlRouterProvider, ChartJsProvider) {
-	   ChartJsProvider.setOptions({ colors : [ '#EA3925', '#1CA539', '#DCDCDC', '#46BFBD', '#FDB45C', '#949FB1', '#4D5360'] });
+   config.$inject = ['$stateProvider', '$urlRouterProvider'];
+   function config($stateProvider, $urlRouterProvider) {
 	   
 	   $urlRouterProvider.otherwise('/');
 	   $stateProvider

@@ -29,10 +29,6 @@
 		vm.popup2 = { opened: false};
 		
 		
-		$('.dropdown-menu').find('input').click(function (e) {
-		    e.stopPropagation();
-		});
-		
 		init();
 		
 		function init(){

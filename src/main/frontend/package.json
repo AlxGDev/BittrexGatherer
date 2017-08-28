@@ -1,0 +1,23 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./js/app.js",
+  "scripts": {
+    "build": "webpack -p"
+  },
+  "keywords": [],
+  "author": "Alex G",
+  "license": "ISC",
+  "devDependencies": {
+    "angular": "^1.6.6",
+    "angular-animate": "^1.6.6",
+    "angular-touch": "^1.6.6",
+    "angular-ui-bootstrap": "^2.5.0",
+    "angular-ui-router": "^1.0.3",
+    "sockjs-client": "^1.1.4",
+    "style-loader": "^0.18.2",
+    "vertx3-eventbus-client": "^3.4.2",
+    "webpack": "^3.5.5"
+  }
+}
