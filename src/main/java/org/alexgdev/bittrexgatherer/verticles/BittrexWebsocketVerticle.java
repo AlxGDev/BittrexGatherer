@@ -1,10 +1,7 @@
 package org.alexgdev.bittrexgatherer.verticles;
 
 
-import org.alexgdev.bittrexgatherer.dto.OrderBookUpdate;
-import org.springframework.stereotype.Component;
-
-
+import org.springframework.web.util.UriComponentsBuilder;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
@@ -13,6 +10,10 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.WebSocket;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.client.HttpResponse;
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.WebClientOptions;
+import io.vertx.ext.web.codec.BodyCodec;
 
 
 public class BittrexWebsocketVerticle extends AbstractVerticle {
@@ -21,10 +22,12 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 	  private String handleFillsMessage;
 	  private String initOrderBookMessage;
 	  private String updateOrderBookMessage;
-	  private Long timerID;
+	  private Long timerID1;
+	  private Long timerID2;
 	  
 	  private String endPoint;
 	  private HttpClient client;
+	  private WebClient restclient;
 	 
 	  
 	  @Override
@@ -34,11 +37,15 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 		initOrderBookMessage = BittrexOrderBookVerticle.INIT_ORDERBOOK+":"+tradingPair;
 		updateOrderBookMessage = BittrexOrderBookVerticle.UPDATE_ORDERBOOK+":"+tradingPair;
 		
-		endPoint = "/signalr/connect?transport=webSockets&clientProtocol="+config().getString("protocol")+
-				  "&connectionToken="+config().getString("connectionToken")+
-				  //"&connectionData="+config().getString("connectionData")+
-				  "&tid="+config().getString("tid");
-		setupHttpClient();
+		WebClientOptions options = new WebClientOptions().setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:54.0) Gecko/20100101 Firefox/54.0.1 Waterfox/54.0.1");
+	    options.setKeepAlive(false);
+		restclient = WebClient.create(vertx, options);
+		getConnectionToken();
+		
+		
+		
+		
+		
 		
 	  }
 	  
@@ -54,17 +61,60 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 		  connectToBittrex();
 	  }
 	  
+	  private void getConnectionToken() {
+		  restclient
+		  .get(80, "socket.bittrex.com", "/signalr/negotiate")
+		  .addQueryParam("clientProtocol", "1.5")
+		  .addQueryParam("connectionData", "[{\"name\":\"corehub\"}]")
+		  .as(BodyCodec.jsonObject())
+		  .send(ar -> {
+		    if (ar.succeeded()) {
+		    	HttpResponse<JsonObject> response = ar.result();
+		    	if(response.statusCode() != 200){
+		    		 System.err.println("Error while trying to get connection token, retrying in 5: " + response.statusCode());
+		    		 timerID2 = vertx.setTimer(5*1000, id -> {
+		    			 getConnectionToken();
+	              	});
+		    	} else {
+		    		JsonObject body = response.body();
+		    		
+		    		System.out.println("Successfully retrieved connection Token");
+		    		UriComponentsBuilder urlBuilder = UriComponentsBuilder.fromUriString("/signalr/connect");
+		    		urlBuilder.queryParam("transport", "webSockets");
+		    		urlBuilder.queryParam("clientProtocol", body.getString("ProtocolVersion"));
+		    		urlBuilder.queryParam("connectionToken", body.getString("ConnectionToken"));
+		    		urlBuilder.queryParam("connectionData", "[{\"name\":\"corehub\"}]");
+		    		
+		    		endPoint = urlBuilder.build().encode().toUriString();
+		    		
+		    		setupHttpClient();		  
+		    		
+		    	}
+		        
+
+		      
+		    } else {
+		      System.err.println("Error while trying to get connection token, retrying in 5: " + ar.cause().getMessage());
+		      timerID2 = vertx.setTimer(5*1000, id -> {
+	    			 getConnectionToken();
+           	});
+		    }
+		  });
+	  }
+	  
 	  private void connectToBittrex(){
+		 
 		  client.websocket(80, "socket.bittrex.com", endPoint, 
 		    		bittrexWebSocketHandler(), failure -> {
-		                System.out.println("Failure connecting to Bittrex Websocket. Retrying in 5");
-		                timerID = vertx.setTimer(5*1000, id -> {
+		                System.err.println("Failure connecting to Bittrex Websocket. Retrying in 5: "+failure.getMessage() );
+		                timerID1 = vertx.setTimer(5*1000, id -> {
 		        	    	  connectToBittrex();
 		              	});
 		            });
 	  }
 	
 	  private Handler<WebSocket> bittrexWebSocketHandler(){
+		 
 		  JsonObject msg1 = new JsonObject().put("H", "corehub")
 				.put("M", "SubscribeToExchangeDeltas")
 				.put("A", new JsonArray().add(config().getString("tradingPair")))
