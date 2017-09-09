@@ -3,9 +3,8 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>org.alexgdev</groupId>
-	<artifactId>BittrexGatherer</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+
+	<artifactId>BittrexGathererBackend</artifactId>
 	<packaging>jar</packaging>
 
 	<name>BittrexGatherer</name>
@@ -16,12 +15,15 @@
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>1.5.4.RELEASE</version>
 		<relativePath/> <!-- lookup parent from repository -->
+		
 	</parent>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>1.8</java.version>
+		<frontend-plugin.version>1.5</frontend-plugin.version>
+		<node.version>v7.10.0</node.version>
 	</properties>
 
 	<dependencies>
@@ -50,6 +52,11 @@
 		    <version>3.4.2</version>
 		</dependency>
 		<dependency>
+		  <groupId>io.vertx</groupId>
+		  <artifactId>vertx-web-client</artifactId>
+		  <version>3.4.2</version>
+		</dependency>
+		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
@@ -59,6 +66,11 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+		    <groupId>net.sourceforge.htmlunit</groupId>
+		    <artifactId>htmlunit</artifactId>
+		    <version>2.27</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -67,7 +79,8 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
-		</plugins>
+			
+      </plugins>
 	</build>
 
 

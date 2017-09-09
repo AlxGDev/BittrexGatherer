@@ -24,13 +24,15 @@ import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 @Component
 public class BittrexVerticle extends AbstractVerticle{
 	
-	public static final String SETUPVERTICLES = "SETUPVERTICLES";
+	public static final String REDEPLOYBITTREXVERTICLES = "REDEPLOYBITTREXVERTICLES";
 	
 	
 	private JsonObject config;
 	private String o_id;
 	private String p_id;
 	private String ws_id;
+	
+	private DeploymentOptions options;
 	
 	@Autowired
 	OrderFillService service;
@@ -43,10 +45,10 @@ public class BittrexVerticle extends AbstractVerticle{
 
 		
 		vertx.eventBus()
-    	.<String>consumer(SETUPVERTICLES)
+    	.<String>consumer(REDEPLOYBITTREXVERTICLES)
     	.handler(handleVerticleRedeploy());
 		
-		DeploymentOptions options = new DeploymentOptions();
+		options = new DeploymentOptions();
 		options.setConfig(config);
 		redeployVerticles(options);
 		
@@ -65,7 +67,9 @@ public class BittrexVerticle extends AbstractVerticle{
 	 private Handler<Message<String>> handleVerticleRedeploy(){
 			return msg -> {
 				config.put("tradingPair", msg.body());
-				msg.reply("");
+				options.setConfig(config);
+				redeployVerticles(options);
+				msg.reply("redeploying");
 			};
 	}
 	 
