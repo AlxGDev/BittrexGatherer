@@ -1,6 +1,14 @@
 package org.alexgdev.bittrexgatherer.verticles;
 
 
+import java.awt.Desktop;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Map;
+
+import org.alexgdev.bittrexgatherer.dto.MessageDTO;
+import org.alexgdev.bittrexgatherer.dto.MessageType;
 import org.alexgdev.bittrexgatherer.service.OrderFillService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -9,9 +17,16 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.ReplyException;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.client.HttpRequest;
+import io.vertx.ext.web.client.HttpResponse;
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.handler.ErrorHandler;
 import io.vertx.ext.web.handler.FaviconHandler;
 import io.vertx.ext.web.handler.StaticHandler;
@@ -34,6 +49,8 @@ public class BittrexVerticle extends AbstractVerticle{
 	
 	private DeploymentOptions options;
 	
+	private WebClient restclient;
+	
 	@Autowired
 	OrderFillService service;
 	
@@ -42,7 +59,11 @@ public class BittrexVerticle extends AbstractVerticle{
 		 String tradingPair="BTC-ARK";
 		 config = new JsonObject()
 					.put("tradingPair", tradingPair);
-
+		 
+		String userAgent = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36";
+		WebClientOptions webclientoptions = new WebClientOptions().setUserAgent(userAgent);
+		webclientoptions.setKeepAlive(false);
+		restclient = WebClient.create(vertx, webclientoptions);
 		
 		vertx.eventBus()
     	.<String>consumer(REDEPLOYBITTREXVERTICLES)
@@ -55,6 +76,8 @@ public class BittrexVerticle extends AbstractVerticle{
 		
 		Router router = Router.router(vertx);
 		router.route("/eventbus/*").handler(eventBusHandler());
+		router.get("/api/tradingpairs")
+        .handler(this::handleGetTradingPairs);
         router.route().failureHandler(errorHandler());
         router.route("/*").handler(StaticHandler.create("static").setCachingEnabled(false));
         router.route().handler(FaviconHandler.create("static/favicon.ico"));
@@ -62,10 +85,51 @@ public class BittrexVerticle extends AbstractVerticle{
         vertx.createHttpServer()
             .requestHandler(router::accept)
             .listen(config().getInteger("http.port", 8080));
+       
+        
 	 }
+	 
+	 //need to route through server because bittrex has cors enabled, can't do it in browser
+	 public void handleGetTradingPairs(RoutingContext context){
+	    
+		 HttpRequest<Buffer> request = restclient.get(443, "www.bittrex.com", "/api/v1.1/public/getmarkets");		 
+			  
+		 request.ssl(true).send(ar -> {
+			  
+			  if (ar.succeeded()) {
+				  HttpResponse<Buffer> response = ar.result();
+				  if(response.statusCode() == 200){
+					  JsonObject body = response.bodyAsJsonObject();
+					  context.response()
+	                  .putHeader("content-type", "application/json")
+	                  .setStatusCode(200)
+	                  .end(body.encode());
+					  
+					  
+				  } else {
+					  System.err.println(response.bodyAsString());
+					  MessageDTO dto = new MessageDTO(MessageType.ERROR, "Could not retrieve tradingpairs: "+response.statusCode(), null);
+		              context.response()
+		                	.putHeader("content-type", "application/json")
+		                    .setStatusCode(response.statusCode())
+		                    .end(JsonObject.mapFrom(dto).encodePrettily());
+				  }
+				  	  
+		      
+			  } else {
+				  MessageDTO dto = new MessageDTO(MessageType.ERROR, "Could not retrieve tradingpairs: "+ar.cause().getMessage(), null);
+	              context.response()
+	              	.putHeader("content-type", "application/json")
+	              	.setStatusCode(500)
+	              	.end(JsonObject.mapFrom(dto).encodePrettily());
+			  }
+		  });		 
+		  
+	}
 	 
 	 private Handler<Message<String>> handleVerticleRedeploy(){
 			return msg -> {
+				System.out.println(msg);
 				config.put("tradingPair", msg.body());
 				options.setConfig(config);
 				redeployVerticles(options);
@@ -287,12 +351,15 @@ public class BittrexVerticle extends AbstractVerticle{
 		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.UPDATE_ORDERBOOK+":[A-Z]+-[A-Z]+"))
 		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.ORDERBOOK_READY+":[A-Z]+-[A-Z]+"))
 		    		.addInboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.GET_ORDERBOOK+":[A-Z]+-[A-Z]+"))
-		    		.addInboundPermitted(new PermittedOptions().setAddressRegex("getMovingAverage:[A-Z]+-[A-Z]+"));
+		    		.addInboundPermitted(new PermittedOptions().setAddressRegex("getMovingAverage:[A-Z]+-[A-Z]+"))
+		    		.addInboundPermitted(new PermittedOptions().setAddressRegex("REDEPLOYBITTREXVERTICLES"));
 		    return SockJSHandler.create(vertx, options).bridge(boptions, event -> {
 		         if (event.type() == BridgeEventType.SOCKET_CREATED) {
 		            System.out.println("A socket was created!");
 		         } else if (event.type() == BridgeEventType.SOCKET_CLOSED){
 		        	 System.out.println("A socket was closed!");
+		         } else if (event.type() == BridgeEventType.UNREGISTER || event.type() == BridgeEventType.REGISTER){
+		        	 System.out.println(event.getRawMessage().encode());
 		         }
 		        event.complete(true);
 		    });

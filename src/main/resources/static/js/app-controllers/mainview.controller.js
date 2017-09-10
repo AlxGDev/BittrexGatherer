@@ -5,18 +5,21 @@
         .module('app')
         .controller('MainViewController', MainViewController);
 
-    MainViewController.$inject = ['$state', '$scope', '$http', '$filter'];
-    function MainViewController($state, $scope, $http, $filter) {
+    MainViewController.$inject = ['$state', '$scope', '$http', '$filter', 'BittrexService'];
+    function MainViewController($state, $scope, $http, $filter, BittrexService) {
         var vm = this;
         
         vm.orderBook ={
         		buyOrders: {},
         		sellOrders: {}
         };
+        vm.tradingpairs = [];
+        vm.currentTradingPair = "BTC-ARK";
         vm.buysPropertyName = "id";
         vm.sortBuysBy = sortBuysBy;
         vm.sortSellsBy = sortSellsBy;
-        vm.getKeys = getKeys
+        vm.getKeys = getKeys;
+        vm.switchTo = switchTo;
 
 		
 		vm.error = {
@@ -28,11 +31,63 @@
 		vm.popup1 = { opened: false};
 		vm.popup2 = { opened: false};
 		
+		var orderBookUpdateCallBack = function(error, message) {
+		    console.log('received a message: ' + JSON.stringify(message));
+		    processOrderBookUpdate(message.body)
+		};
+		
+		var orderBookReadyCallBack = function(error, message) {
+		    //console.log('received a message: ' + JSON.stringify(message));
+		    vm.eb.send("GETORDERBOOK:"+vm.currentTradingPair,
+		              "", function(response, json) {
+		    	 //console.log('received a message: ' + JSON.stringify(json));
+		    				setOrderBook(json.body);
+		    				
+		    			});
+		};
+		
 		
 		init();
 		
 		function init(){
-			setupEventBus();
+			
+			BittrexService.getTradingPairs(function (result) {
+            	if(result.success == true){
+            		vm.tradingpairs = result.message;
+            		vm.error.hidden = true;
+            		setupEventBus();
+            		
+            	} else {
+            		showAlert(result.message);
+            	}
+                
+            });
+			
+			
+		}
+		
+		function switchTo(tradingpair){
+			console.log("Switching");
+			if(vm.eb == null || vm.eb.state != EventBus.OPEN){
+				showAlert("EventBus not open!");
+			} else {
+				 vm.eb.unregisterHandler('UPDATEORDERBOOK:'+vm.currentTradingPair, orderBookUpdateCallBack); 
+				 vm.eb.unregisterHandler('ORDERBOOKREADY:'+vm.currentTradingPair, orderBookReadyCallBack);
+				 vm.currentTradingPair = tradingpair;
+				 vm.orderBook ={
+			        		buyOrders: {},
+			        		sellOrders: {}
+			     };
+				 vm.eb.registerHandler('UPDATEORDERBOOK:'+vm.currentTradingPair, orderBookUpdateCallBack); 
+				 vm.eb.registerHandler('ORDERBOOKREADY:'+vm.currentTradingPair, orderBookReadyCallBack);
+				 vm.eb.send("REDEPLOYBITTREXVERTICLES",
+						 vm.currentTradingPair, function(response, json) {
+					  console.log('reply from redeploy: ' + response);
+		              
+		              
+				  });
+				 
+			}
 		}
 		
 		function setupEventBus() {
@@ -41,23 +96,12 @@
 			    setTimeout(setupEventBus, 1000); // Give the server some time to come back
 			  };
 			  vm.eb.onopen = function() {
-
+				  vm.error.hidden = true;
 				  // set a handler to receive a message
-				  vm.eb.registerHandler('UPDATEORDERBOOK:BTC-ARK', function(error, message) {
-				    console.log('received a message: ' + JSON.stringify(message));
-				    processOrderBookUpdate(message.body)
-				  }); 
-				  vm.eb.registerHandler('ORDERBOOKREADY:BTC-ARK', function(error, message) {
-					    console.log('received a message: ' + JSON.stringify(message));
-					    vm.eb.send("GETORDERBOOK:BTC-ARK",
-					              "", function(response, json) {
-					    	 //console.log('received a message: ' + JSON.stringify(json));
-					    				setOrderBook(json.body);
-					    				
-					    			});
-				  });
+				  vm.eb.registerHandler('UPDATEORDERBOOK:'+vm.currentTradingPair, orderBookUpdateCallBack); 
+				  vm.eb.registerHandler('ORDERBOOKREADY:'+vm.currentTradingPair, orderBookReadyCallBack);
 				  
-				  vm.eb.send("GETORDERBOOK:BTC-ARK",
+				  vm.eb.send("GETORDERBOOK:"+vm.currentTradingPair,
 			              "", function(response, json) {
 					  //console.log('received a message: ' + JSON.stringify(json));
 		              setOrderBook(json.body);
@@ -76,7 +120,7 @@
 			
 			vm.orderBook.buyOrders = body.buyOrders;
 			vm.orderBook.sellOrders = body.sellOrders;
-			vm.tradingPair = body.tradingPair;
+			 vm.currentTradingPair = body.tradingPair;
 			$scope.$apply()
 		}
 		

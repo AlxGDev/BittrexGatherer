@@ -129,12 +129,12 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 				    webClient.getOptions().setRedirectEnabled(true);
 				    webClient.setAjaxController(new NicelyResynchronizingAjaxController());
 				    webClient.getCache().setMaxSize(0);
-				    webClient.waitForBackgroundJavaScript(20000);
+				    webClient.waitForBackgroundJavaScript(5000);
 				   // webClient.waitForBackgroundJavaScriptStartingBefore(20000);
 			        String url = "https://socket.bittrex.com/signalr/negotiate?clientProtocol=1.5&connectionData=%5B%7B%22name%22%3A%22corehub%22%7D%5D&_=1504909744031";
 			        HtmlPage htmlPage = webClient.getPage(url);
 			        synchronized (htmlPage) {
-			        	htmlPage.wait(25000);
+			        	htmlPage.wait(7000);
 			        }
 			        
 			        if(webClient.getCookieManager().getCookie("cf_clearance") != null && webClient.getCookieManager().getCookie("__cfduid") != null){
