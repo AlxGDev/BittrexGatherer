@@ -1,5 +1,7 @@
 package org.alexgdev.bittrexgatherer.indicators;
 
+import org.alexgdev.bittrexgatherer.util.PriceEvent;
+
 import lombok.Data;
 
 @Data
@@ -25,7 +27,8 @@ public class RSI {
         this.countCollected = 0;
     }
 	
-	public void add(Double currentPrice){
+	public void add(PriceEvent e){
+		Double currentPrice = e.getRate();
 		if(lastPrice == null){
 			lastPrice = currentPrice;
 			countCollected = 1;

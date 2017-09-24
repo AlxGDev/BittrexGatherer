@@ -187,8 +187,8 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 		  
 		  HttpClientOptions options = new HttpClientOptions();
 		  
-		  options.setMaxWebsocketFrameSize(300000);
-		  options.setMaxWebsocketMessageSize(300000);
+		  options.setMaxWebsocketFrameSize(1000000);
+		  options.setMaxWebsocketMessageSize(1000000);
 		  
 		  client = vertx.createHttpClient(options);
 		  connectToBittrex(endPoint);

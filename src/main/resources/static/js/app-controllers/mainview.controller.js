@@ -14,6 +14,7 @@
         		sellOrders: {}
         };
         vm.tradingpairs = [];
+        vm.indicators = {};
         vm.currentTradingPair = "BTC-ARK";
         vm.buysPropertyName = "id";
         vm.sortBuysBy = sortBuysBy;
@@ -32,7 +33,7 @@
 		vm.popup2 = { opened: false};
 		
 		var orderBookUpdateCallBack = function(error, message) {
-		    console.log('received a message: ' + JSON.stringify(message));
+		    //console.log('received a message: ' + JSON.stringify(message));
 		    processOrderBookUpdate(message.body)
 		};
 		
@@ -44,6 +45,11 @@
 		    				setOrderBook(json.body);
 		    				
 		    			});
+		};
+		
+		var indicatorsUpdateCallBack = function(error, message) {
+		    console.log('received a message: ' + JSON.stringify(message));
+		    vm.indicators = message.body;
 		};
 		
 		
@@ -73,13 +79,16 @@
 			} else {
 				 vm.eb.unregisterHandler('UPDATEORDERBOOK:'+vm.currentTradingPair, orderBookUpdateCallBack); 
 				 vm.eb.unregisterHandler('ORDERBOOKREADY:'+vm.currentTradingPair, orderBookReadyCallBack);
+				 vm.eb.unregisterHandler('UPDATEINDICATORS:'+vm.currentTradingPair, indicatorsUpdateCallBack);
 				 vm.currentTradingPair = tradingpair;
 				 vm.orderBook ={
 			        		buyOrders: {},
 			        		sellOrders: {}
 			     };
+				 vm.indicators ={};
 				 vm.eb.registerHandler('UPDATEORDERBOOK:'+vm.currentTradingPair, orderBookUpdateCallBack); 
 				 vm.eb.registerHandler('ORDERBOOKREADY:'+vm.currentTradingPair, orderBookReadyCallBack);
+				 vm.eb.registerHandler('UPDATEINDICATORS:'+vm.currentTradingPair, indicatorsUpdateCallBack);
 				 vm.eb.send("REDEPLOYBITTREXVERTICLES",
 						 vm.currentTradingPair, function(response, json) {
 					  console.log('reply from redeploy: ' + response);
@@ -100,7 +109,7 @@
 				  // set a handler to receive a message
 				  vm.eb.registerHandler('UPDATEORDERBOOK:'+vm.currentTradingPair, orderBookUpdateCallBack); 
 				  vm.eb.registerHandler('ORDERBOOKREADY:'+vm.currentTradingPair, orderBookReadyCallBack);
-				  
+				  vm.eb.registerHandler('UPDATEINDICATORS:'+vm.currentTradingPair, indicatorsUpdateCallBack);
 				  vm.eb.send("GETORDERBOOK:"+vm.currentTradingPair,
 			              "", function(response, json) {
 					  //console.log('received a message: ' + JSON.stringify(json));

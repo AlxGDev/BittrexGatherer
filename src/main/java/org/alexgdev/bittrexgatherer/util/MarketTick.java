@@ -11,7 +11,11 @@ public class MarketTick implements PriceEvent{
 	private Double low = 0.0;
 	private Double volume = 0.0;
 	
-	
+	public MarketTick(){};
+	public MarketTick(Double price){
+		high = price;
+		low = price;
+	}
 	public void add(OrderFillDTO dto){
 		if(dto.getRate() > high){
 			high = dto.getRate();

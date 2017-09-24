@@ -349,6 +349,7 @@ public class BittrexVerticle extends AbstractVerticle{
 		 	SockJSHandlerOptions options = new SockJSHandlerOptions().setHeartbeatInterval(2000);
 		    BridgeOptions boptions = new BridgeOptions()
 		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.UPDATE_ORDERBOOK+":[A-Z]+-[A-Z]+"))
+		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexPriceVerticle.UPDATE_INDICATORS+":[A-Z]+-[A-Z]+"))
 		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.ORDERBOOK_READY+":[A-Z]+-[A-Z]+"))
 		    		.addInboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.GET_ORDERBOOK+":[A-Z]+-[A-Z]+"))
 		    		.addInboundPermitted(new PermittedOptions().setAddressRegex("getMovingAverage:[A-Z]+-[A-Z]+"))
