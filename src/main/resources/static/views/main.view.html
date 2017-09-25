@@ -38,6 +38,7 @@
 <div class = "container">
 	<div class="page-header" id="banner">
 	  <h1><center>{{ vm.currentTradingPair}}</center></h1>
+	  
 	</div>
 	<div class = "jumbotron">
 	
@@ -46,6 +47,35 @@
 		</div>
 		
 	   <div class="container">
+	   		<div class="row">
+	   		<h2 class="sub-header">Indicators</h2>
+	   		<div class="table-responsive">
+			      <table class="table table-striped">
+				    <tbody>
+				      <tr>
+				        <td class="col-md-1">Last Tick</td>
+				        <td class="col-md-1"> {{vm.indicators.tick}}</td>
+				      </tr>
+				      <tr>
+				        <td class="col-md-1">RSI</td>
+				        <td class="col-md-1"> {{vm.indicators.rsi}}</td>
+				      </tr>
+				      <tr>
+				        <td class="col-md-1">Bollinger high</td>
+				        <td class="col-md-1"> {{vm.indicators.bb_high}}</td>
+				      </tr>
+				      <tr>
+				        <td class="col-md-1">Bollinger low</td>
+				        <td class="col-md-1"> {{vm.indicators.bb_low}}</td>
+				      </tr>
+				      <tr>
+				        <td class="col-md-1">Moving Average</td>
+				        <td class="col-md-1"> {{vm.indicators.sma}}</td>
+				      </tr>
+				   </table>
+				   </div>
+			  </div>
+	  </div>
 	    	<div class="row">
 		      <div class = "col-xs-6">
 		      	<h2 class="sub-header">Buy Orders</h2>
