@@ -5,7 +5,7 @@ import java.util.TreeMap;
 import org.alexgdev.bittrexgatherer.dto.OrderBookDTO;
 import org.alexgdev.bittrexgatherer.dto.OrderBookUpdate;
 import org.alexgdev.bittrexgatherer.dto.OrderDeltaDTO;
-
+import org.alexgdev.bittrexgatherer.util.MessageDefinitions;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
@@ -15,11 +15,7 @@ import io.vertx.core.json.JsonObject;
 
 
 public class BittrexOrderBookVerticle extends AbstractVerticle{
-	
-	public static final String INIT_ORDERBOOK = "INITORDERBOOK";
-	public static final String ORDERBOOK_READY = "ORDERBOOKREADY";
-	public static final String UPDATE_ORDERBOOK = "UPDATEORDERBOOK";
-	public static final String GET_ORDERBOOK = "GETORDERBOOK";
+
 	
 	private OrderBookDTO orderBook;
 	private String tradingPair;
@@ -32,18 +28,18 @@ public class BittrexOrderBookVerticle extends AbstractVerticle{
         orderBook = new OrderBookDTO();
         orderBook.setTradingPair(tradingPair);
         vertx.eventBus()
-                .<JsonObject>consumer(INIT_ORDERBOOK+":"+tradingPair)
+                .<JsonObject>consumer(MessageDefinitions.INIT_ORDERBOOK+":"+tradingPair)
                 .handler(processInit());
         vertx.eventBus()
-        		.<JsonObject>consumer(UPDATE_ORDERBOOK+":"+tradingPair)
+        		.<JsonObject>consumer(MessageDefinitions.UPDATE_ORDERBOOK+":"+tradingPair)
         		.handler(processOrderBookUpdate()); 
         vertx.eventBus()
-        	.<JsonObject>consumer(GET_ORDERBOOK+":"+tradingPair)
+        	.<JsonObject>consumer(MessageDefinitions.GET_ORDERBOOK+":"+tradingPair)
         	.handler(getOrderBook());
     }
 	
 	private Handler<Message<JsonObject>> processInit() {
-        return msg -> vertx.<String>executeBlocking(future -> {
+        return msg -> {
         	try{
 	            JsonObject payload = msg.body();
 	            JsonArray buys = payload.getJsonArray("Buys");
@@ -55,23 +51,18 @@ public class BittrexOrderBookVerticle extends AbstractVerticle{
 				for(int i = 0; i<sells.size();i++){
 					orderBook.getSellOrders().put(sells.getJsonObject(i).getDouble("Rate"), sells.getJsonObject(i).getDouble("Quantity"));
 				}
-				future.complete();
+				vertx.eventBus().publish(MessageDefinitions.ORDERBOOK_READY+":"+tradingPair, "ready");
         	} catch(Exception e){
         		e.printStackTrace();
-        		future.fail(e);
+        		System.out.println("Failed setting up Order Book");
         	}
-        }, result -> {
-            if (result.succeeded()) {
-            	vertx.eventBus().<String>publish(ORDERBOOK_READY+":"+tradingPair, "ready");
-                //System.out.println("Done setting up Order Book: BuyPrice "+orderBook.getBuyOrders().lastKey()+" Quantity: "+orderBook.getBuyOrders().get(orderBook.getBuyOrders().lastKey()));
-            } else {
-            	System.out.println("Failed setting up Order Book");
-            }
-        });
+        };
     }
 	
+	
+	
 	private Handler<Message<JsonObject>> processOrderBookUpdate() {
-        return msg -> vertx.<String>executeBlocking(future -> {
+        return msg -> {
         	 //System.out.println(msg.body());
         	OrderBookUpdate update = msg.body().mapTo(OrderBookUpdate.class);
             for(OrderDeltaDTO dto: update.getBuys()){
@@ -88,16 +79,8 @@ public class BittrexOrderBookVerticle extends AbstractVerticle{
             		orderBook.getSellOrders().put(dto.getRate(), dto.getQuantity());
             	}
             }
-            future.complete();		
-        }, result -> {
-            if (result.succeeded()) {
-                //System.out.println("Done processing OB update");
-                msg.reply(result.result());
-            } else {
-            	System.out.println("Failed processing OB update");
-            	msg.reply(result.result());
-            }
-        });
+            	
+        };
     }
 	
 	private Handler<Message<JsonObject>> getOrderBook(){

@@ -1,6 +1,7 @@
 package org.alexgdev.bittrexgatherer.indicators;
 
 import java.util.ArrayDeque;
+import java.util.LinkedList;
 import java.util.Queue;
 
 import org.alexgdev.bittrexgatherer.util.PriceEvent;
@@ -8,7 +9,7 @@ import org.alexgdev.bittrexgatherer.util.PriceEvent;
 
 public class SimpleMovingAverage implements MovingStatistic{
 	private String id;
-    private final Queue<Double> window = new ArrayDeque<>();
+    private final ArrayDeque<Double> window = new ArrayDeque<>();
     private final int period;
     private Double avg = 0.0;
     private Double s;
@@ -25,6 +26,28 @@ public class SimpleMovingAverage implements MovingStatistic{
     public void add(PriceEvent e) {
     	Double price = e.getRate();
     	window.add(price);
+    	if (window.size() < period)
+        {
+            
+            double delta = price - avg;
+            avg += delta / window.size();
+            variance += delta * (price - avg);
+            stdDev = Math.sqrt(variance);
+        }
+        else
+        {
+            // Adjusting variance
+            double then = window.removeFirst();
+            double prevAvg = avg;
+            avg += (price - then) / period;
+            //variance += (price - prevAvg) * (price - avg) - (then - prevAvg) * (then - avg);
+            variance = variance + ((price -avg + then - prevAvg)*(price - then))/(period-1);
+            stdDev = Math.sqrt(variance);
+        }
+    	
+    	/*
+    	
+    	
         if (window.size() == 1) {
             avg = price;
             s = 0.0;
@@ -45,7 +68,7 @@ public class SimpleMovingAverage implements MovingStatistic{
         	stdDev = Math.sqrt(variance);
         }
     	
-    	
+    	*/
     	
     }
 

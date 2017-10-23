@@ -2,16 +2,17 @@ package org.alexgdev.bittrexgatherer.verticles;
 
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.alexgdev.bittrexgatherer.util.MessageDefinitions;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.gargoylesoftware.htmlunit.BrowserVersion;
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.NicelyResynchronizingAjaxController;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.util.Cookie;
+
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
@@ -26,17 +27,19 @@ import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
-import io.vertx.ext.web.codec.BodyCodec;
 
 
-public class BittrexWebsocketVerticle extends AbstractVerticle {
+public class BittrexRemoteVerticle extends AbstractVerticle {
 
 	  private String tradingPair;
 	  private String handleFillsMessage;
 	  private String initOrderBookMessage;
 	  private String updateOrderBookMessage;
-	  private Long timerID1;
-	  private Long timerID2;
+	  private String setTicksMessage;
+	  
+	  private Long webSocketTimerID;
+	  private Long connectionTokenTimerID;
+	  private Long tickTimerID;
 	  
 	  private HttpClient client;
 	  private WebClient restclient;
@@ -44,18 +47,26 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 	  private MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 	  
 	  private int countTokenError = 0;
+	  private int countTickError = 0;
 	  private String hcConnectionToken = "ZmtLmr61Y21k7X6PkBF+V+b0mccjfCkBA5bv7zUuK6oo0NRnx78xlA69L11pPKvaVOW8A9H4WGjPY3ocpAoTDC/owJH1IQEHSJwhx97xf+WObqYw";
 	  private String hcProtocolVersion = "1.5";
-	  private String cloudFlareUidCookie;
-	  private String cloudFlareClearanceCookie;
-	 
+	  
+	  private Map<Integer, String> tickIntervalStrings;
 	  
 	  @Override
 	  public void start() throws Exception {
 		tradingPair = config().getString("tradingPair");
-		handleFillsMessage = BittrexPriceVerticle.HANDLE_FILLS+":"+tradingPair;
-		initOrderBookMessage = BittrexOrderBookVerticle.INIT_ORDERBOOK+":"+tradingPair;
-		updateOrderBookMessage = BittrexOrderBookVerticle.UPDATE_ORDERBOOK+":"+tradingPair;
+		handleFillsMessage = MessageDefinitions.HANDLE_FILLS+":"+tradingPair;
+		initOrderBookMessage = MessageDefinitions.INIT_ORDERBOOK+":"+tradingPair;
+		updateOrderBookMessage = MessageDefinitions.UPDATE_ORDERBOOK+":"+tradingPair;
+		setTicksMessage = MessageDefinitions.SET_LASTTICKS+":"+tradingPair;
+		
+		tickIntervalStrings = new HashMap<Integer, String>();
+		tickIntervalStrings.put(1, "oneMin");
+		tickIntervalStrings.put(5, "fiveMin");
+		tickIntervalStrings.put(30, "thirtyMin");
+		tickIntervalStrings.put(60, "hour");
+		tickIntervalStrings.put(24*60, "day");
 		
 		String userAgent = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36";
 		WebClientOptions options = new WebClientOptions().setUserAgent(userAgent);
@@ -88,6 +99,7 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 					  countTokenError = 0;
 					  JsonObject body = response.bodyAsJsonObject();
 					  System.out.println("Successfully retrieved connection Token");
+					  getLastTicks(tickIntervalStrings.get(5));
 					  setupHttpClient(body.getString("ConnectionToken"), body.getString("ProtocolVersion"));
 					  
 				  } else if(response.statusCode()==503 && response.getHeader("Server").equals("cloudflare-nginx") && response.bodyAsString().contains("jschl_vc")){
@@ -97,7 +109,7 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 		    				 
 				  } else {
 					  System.err.println("Error while trying to get connection token, retrying in 5: " + response.statusCode());
-					  timerID2 = vertx.setTimer(5*1000, id -> {
+					  connectionTokenTimerID = vertx.setTimer(5*1000, id -> {
 			    			 getConnectionToken();
 		              });
 				  }
@@ -111,8 +123,60 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 	    			 setupHttpClient(hcConnectionToken, hcProtocolVersion);	
 	    		 } else {
 	    			 System.err.println("Error while trying to get connection token, retrying in 5: " + ar.cause().getMessage());
-		    		 timerID2 = vertx.setTimer(5*1000, id -> {
+	    			 connectionTokenTimerID = vertx.setTimer(5*1000, id -> {
 		    			 getConnectionToken();
+	              	});
+	    		 }
+			  }
+		  });
+	  }
+	  
+	  private void getLastTicks(String interval) {
+		  HttpRequest<Buffer> request =restclient
+		  .get(80, "www.bittrex.com", "/Api/v2.0/pub/market/GetTicks")		 
+		  .addQueryParam("marketName", tradingPair)
+		  .addQueryParam("tickInterval", interval);
+		  
+		  if(isCloudFlareProtected){
+			  request.putHeader("Cookie", headers.get("Cookie"));
+		  }
+
+		  
+		  request.send(ar -> {
+			  
+			  if (ar.succeeded()) {
+				  HttpResponse<Buffer> response = ar.result();
+				  if(response.statusCode() == 200){
+					  countTokenError = 0;
+					  JsonObject body = response.bodyAsJsonObject();
+					  if(body.containsKey("success") && body.getBoolean("success") == true){
+						  JsonObject payload = new JsonObject();
+						  payload.put("interval", 5);
+						  JsonArray ticks = body.getJsonArray("result");
+						  payload.put("ticks", ticks);
+						  vertx.eventBus().publish(setTicksMessage, payload);
+					  } else {
+						  System.err.println("Error while trying to get Tick Data: "+body.getString("message"));
+					  }
+					  		  
+					  
+				  } else {
+					  System.err.println("Error while trying to get ticks, retrying in 5: " + response.statusCode());
+					  tickTimerID = vertx.setTimer(5*1000, id -> {
+						  getLastTicks(interval);
+		              });
+				  }
+				  	  
+		      
+			  } else {
+		    	countTokenError++;
+	    		 if(countTickError == 5){
+	    			 countTickError = 0;
+	    			 System.err.println("Unable to get Tick Data. Stopping."); 
+	    		 } else {
+	    			 System.err.println("Unable to get Tick Data, retrying in 5: " + ar.cause().getMessage());
+	    			 tickTimerID = vertx.setTimer(5*1000, id -> {
+	    				 getLastTicks(interval);
 	              	});
 	    		 }
 			  }
@@ -162,6 +226,7 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 
 		          System.out.println("Done htmlunit");
 		          getConnectionToken();
+		          
 
 		        } else {
 		          System.out.println(res.cause().getMessage());
@@ -201,7 +266,7 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 		  client.websocket(80, "socket.bittrex.com", endPoint, headers,
 		    		bittrexWebSocketHandler(), failure -> {
 		                System.err.println("Failure connecting to Bittrex Websocket. Retrying in 5: "+failure.getMessage() );
-		                timerID1 = vertx.setTimer(5*1000, id -> {
+		                webSocketTimerID = vertx.setTimer(5*1000, id -> {
 		        	    	  connectToBittrex(endPoint);
 		              	});
 		            });
@@ -226,7 +291,7 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 		    	  JsonObject msg = data.toJsonObject();
 		    	  if(msg.containsKey("R") && msg.getString("I").equals("1")){
 		    		  
-		    		  vertx.eventBus().<JsonObject>publish(initOrderBookMessage, msg.getJsonObject("R"));
+		    		  vertx.eventBus().publish(initOrderBookMessage, msg.getJsonObject("R"));
 		    	  }
 		    	  if(msg.containsKey("M") 
 		    		&& msg.getJsonArray("M").size() > 0 
@@ -236,10 +301,10 @@ public class BittrexWebsocketVerticle extends AbstractVerticle {
 		    		  JsonObject payload = msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").getJsonObject(0);
 		    		  //OrderBookUpdate payload = msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").getJsonObject(0).mapTo(OrderBookUpdate.class);
 		    		  if(msg.getJsonArray("M").getJsonObject(0).getJsonArray("A").getJsonObject(0).getJsonArray("Fills").size()>0){
-		    			  vertx.eventBus().<JsonObject>publish(handleFillsMessage, payload);
+		    			  vertx.eventBus().publish(handleFillsMessage, payload);
 		    		  }
 		    		  
-		    		  	  vertx.eventBus().<JsonObject>publish(updateOrderBookMessage, payload);
+		    		  	  vertx.eventBus().publish(updateOrderBookMessage, payload);
 		    		  
 		    		 
 		    	  } 

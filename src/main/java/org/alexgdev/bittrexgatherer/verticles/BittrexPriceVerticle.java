@@ -5,15 +5,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.alexgdev.bittrexgatherer.dto.IndicatorDTO;
+import org.alexgdev.bittrexgatherer.dto.MarketTickDTO;
 import org.alexgdev.bittrexgatherer.dto.MovingAverageDTO;
 import org.alexgdev.bittrexgatherer.dto.OrderBookUpdate;
 import org.alexgdev.bittrexgatherer.dto.OrderFillDTO;
+import org.alexgdev.bittrexgatherer.dto.TickUpdate;
 import org.alexgdev.bittrexgatherer.indicators.SimpleMovingAverage;
 import org.alexgdev.bittrexgatherer.indicators.BollingerBands;
 import org.alexgdev.bittrexgatherer.indicators.RSI;
 import org.alexgdev.bittrexgatherer.indicators.VolumeWeightedMovingAverage;
 import org.alexgdev.bittrexgatherer.service.OrderFillService;
 import org.alexgdev.bittrexgatherer.util.MarketTick;
+import org.alexgdev.bittrexgatherer.util.MessageDefinitions;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
@@ -23,25 +27,17 @@ import io.vertx.core.shareddata.LocalMap;
 import io.vertx.core.shareddata.SharedData;
 
 public class BittrexPriceVerticle extends AbstractVerticle{
-	public static final String HANDLE_FILLS = "HANDLEFILLS";
-	public static final String UPDATE_INDICATORS = "UPDATEINDICATORS";
+	
 	
 	private String tradingPair;
 	private String updateIndicatorsMessage;
 	
 	//5min tick
-	private Long timerID1;
-	private int timeInterval1;
-	private MarketTick tick1;
-	private IndicatorDTO indicators1;
-	
-	//10min tick
-	/* private Long timerID2;
-	private int timeInterval2;
-	private MarketTick tick2;
-	private SimpleMovingAverage ma_2;*/
-	
-	private Map<String, Long> timers = new HashMap<>();
+	private Long indicatorTimer;
+	private int timerInterval;
+	private MarketTick currentTick;
+	private IndicatorDTO indicators;
+	private CircularFifoQueue<MarketTick> cachedTicks;
 	
 	
 	private MovingAverageDTO dto;
@@ -51,19 +47,20 @@ public class BittrexPriceVerticle extends AbstractVerticle{
 	
 	public BittrexPriceVerticle(OrderFillService service){
 		super();
-		this.service = service;
-		this.indicators1 = new IndicatorDTO();
-		SimpleMovingAverage ma_1 = new SimpleMovingAverage(10, "ma_1");
+		service = service;
+		indicators = new IndicatorDTO();
+		cachedTicks = new CircularFifoQueue<MarketTick>(20);
+		SimpleMovingAverage ma_1 = new SimpleMovingAverage(20, "ma_1");
 		BollingerBands bb_1 = new BollingerBands(ma_1, 2);
-		VolumeWeightedMovingAverage vwma_1 = new VolumeWeightedMovingAverage(10, "vwma_1");
+		VolumeWeightedMovingAverage vwma_1 = new VolumeWeightedMovingAverage(20, "vwma_1");
 		RSI rsi_1 = new RSI(14, "rsi_1");
-		tick1 = new MarketTick();
+		currentTick = new MarketTick();
 		
-		indicators1.setBb(bb_1);
-		indicators1.setRsi(rsi_1);
-		indicators1.setSma(ma_1);
-		indicators1.setVwma(vwma_1);
-		timeInterval1 = 5*60*1000;
+		indicators.setBb(bb_1);
+		indicators.setRsi(rsi_1);
+		indicators.setSma(ma_1);
+		indicators.setVwma(vwma_1);
+		timerInterval = 5*60*1000;
 		
 	}
 	
@@ -71,69 +68,109 @@ public class BittrexPriceVerticle extends AbstractVerticle{
     public void start() throws Exception {
         super.start();
 		tradingPair = config().getString("tradingPair");
-		updateIndicatorsMessage = UPDATE_INDICATORS+":"+tradingPair;
+		updateIndicatorsMessage = MessageDefinitions.UPDATE_INDICATORS+":"+tradingPair;
 		dto = new MovingAverageDTO();
 		dto.setTradingPair(tradingPair);
 
         vertx.eventBus()
-                .<JsonObject>consumer(HANDLE_FILLS+":"+tradingPair)
+                .<JsonObject>consumer(MessageDefinitions.HANDLE_FILLS+":"+tradingPair)
                 .handler(processFills());
-        timers.put("timer1",  vertx.setTimer(timeInterval1, id -> {
-	    	  calculateIndicators(indicators1, tick1, timeInterval1, "timer1");
-	    }));
+        
+        vertx.eventBus()
+        	.<JsonObject>consumer(MessageDefinitions.SET_LASTTICKS+":"+tradingPair)
+        	.handler(processLastTicks());
+        
+        indicatorTimer =   vertx.setTimer(timerInterval, id -> {
+	    	  calculateIndicators();
+	    });
     }
 	
-	private void calculateIndicators(IndicatorDTO indicators, MarketTick tick, int interval, String timerid){
-		vertx.<String>executeBlocking(future -> {
-	            System.out.println(tick);
-				if(tick.getRate() > 0.0){
-					indicators.setCurrentPrice(tick.getRate());
-					indicators.getBb().add(tick);
-					indicators.getRsi().add(tick);
-					indicators.getSma().add(tick);
-					indicators.getVwma().add(tick);
+	private void calculateIndicators(){
+		 System.out.println(currentTick);
+		 if(currentTick.getRate() > 0.0){
+					indicators.setCurrentPrice(currentTick.getRate());
+					indicators.getBb().add(currentTick);
+					indicators.getRsi().add(currentTick);
+					indicators.getSma().add(currentTick);
+					indicators.getVwma().add(currentTick);
+					cachedTicks.add(currentTick);
 	               //SharedData sd = vertx.sharedData();
 	               //LocalMap<String, Double> map1 = sd.getLocalMap(tradingPair+" Price");     
-				}
+		 }
             	
-				tick.clearPeriod();
-            	
-            	
-            	
-            	System.out.println("Indicators: "+ indicators.convertToJson().encode());
-            	future.complete();
-            	
-            	
-            
-			
-        }, result -> {
-            if (result.succeeded()) {
-                //System.out.println("Done processing price: "+dto);
-            	vertx.eventBus().<JsonObject>publish(updateIndicatorsMessage, indicators.convertToJson());
-            	timers.put(timerid,vertx.setTimer(interval, id -> {
-            		calculateIndicators(indicators, tick, interval, timerid);
-              	}));
-            } else {
-            	System.out.println("Failed calculating Indicators");
-            	result.cause().printStackTrace();
-            	timers.put(timerid,vertx.setTimer(interval, id -> {
-            		calculateIndicators(indicators, tick, interval, timerid);
-            	}));
-            }
-        });
+		 currentTick = new MarketTick();
+         
+		 System.out.println("Indicators: "+ indicators.convertToJson().encode());
+         vertx.eventBus().publish(updateIndicatorsMessage, indicators.convertToJson());
+         indicatorTimer = vertx.setTimer(timerInterval, id -> {
+        	 calculateIndicators();
+         });
 
 	}
 	
+	private Handler<Message<JsonObject>> processLastTicks() {
+        return msg -> {
+        	try{
+        		
+        		vertx.cancelTimer(indicatorTimer);
+        		TickUpdate update = msg.body().mapTo(TickUpdate.class);
+        		
+				for(MarketTickDTO tick : update.getTicks()){
+					currentTick.setHigh(tick.getHigh());
+					currentTick.setLow(tick.getLow());
+					currentTick.setVolume(tick.getVolume());
+					
+					indicators.setCurrentPrice(currentTick.getRate());
+					indicators.getBb().add(currentTick);
+					indicators.getRsi().add(currentTick);
+					indicators.getSma().add(currentTick);
+					indicators.getVwma().add(currentTick);
+					
+					cachedTicks.add(currentTick);
+					currentTick = new MarketTick();
+	
+				}
+				System.out.println(indicators.getBb().getLowerBand()+ " "+indicators.getBb().getMa().getAverage()+" "+indicators.getBb().getUpperBand());
+				timerInterval = update.getInterval()*60*1000;
+				indicatorTimer = vertx.setTimer(timerInterval, id -> {
+		        	 calculateIndicators();
+		         });
+				vertx.eventBus().publish(updateIndicatorsMessage, indicators.convertToJson());
+				
+        	} catch(Exception e){
+        		e.printStackTrace();
+        		System.out.println("Failed processing last ticks");
+        	}
+        };
+    }
 	
 	private Handler<Message<JsonObject>> processFills() {
+        return msg -> {
+        	try{
+	            OrderBookUpdate update = msg.body().mapTo(OrderBookUpdate.class);
+	            
+				for(OrderFillDTO fill : update.getFills()){
+					currentTick.add(fill);
+					
+				}
+				
+        	} catch(Exception e){
+        		e.printStackTrace();
+        		System.out.println("Failed processing fills");
+        	}
+        };
+    }
+	
+	
+	
+	private Handler<Message<JsonObject>> processFillsAndSave() {
         return msg -> vertx.<String>executeBlocking(future -> {
         	try{
 	            OrderBookUpdate update = msg.body().mapTo(OrderBookUpdate.class);
 	            
 				for(OrderFillDTO fill : update.getFills()){
-					tick1.add(fill);
-					//tick2.add(fill);
-					//service.save(fill, tradingPair, "bittrex");
+					currentTick.add(fill);
+					service.save(fill, tradingPair, "bittrex");
 				}
 				future.complete();
         	} catch(Exception e){
@@ -148,7 +185,7 @@ public class BittrexPriceVerticle extends AbstractVerticle{
             	System.out.println("Failed processing fills");
             }
         });
-    }
+    } 
 
 	
 

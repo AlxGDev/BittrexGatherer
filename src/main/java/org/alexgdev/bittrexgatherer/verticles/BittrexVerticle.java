@@ -10,6 +10,7 @@ import java.util.Map;
 import org.alexgdev.bittrexgatherer.dto.MessageDTO;
 import org.alexgdev.bittrexgatherer.dto.MessageType;
 import org.alexgdev.bittrexgatherer.service.OrderFillService;
+import org.alexgdev.bittrexgatherer.util.MessageDefinitions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -39,7 +40,7 @@ import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 @Component
 public class BittrexVerticle extends AbstractVerticle{
 	
-	public static final String REDEPLOYBITTREXVERTICLES = "REDEPLOYBITTREXVERTICLES";
+	
 	
 	
 	private JsonObject config;
@@ -66,7 +67,7 @@ public class BittrexVerticle extends AbstractVerticle{
 		restclient = WebClient.create(vertx, webclientoptions);
 		
 		vertx.eventBus()
-    	.<String>consumer(REDEPLOYBITTREXVERTICLES)
+    	.<String>consumer(MessageDefinitions.REDEPLOYBITTREXVERTICLES)
     	.handler(handleVerticleRedeploy());
 		
 		options = new DeploymentOptions();
@@ -304,7 +305,7 @@ public class BittrexVerticle extends AbstractVerticle{
 	private Future<String> deployWebSocketVerticle(DeploymentOptions options) {
 		
 		Future<String> future = Future.future();
-		vertx.deployVerticle(new BittrexWebsocketVerticle(), options, res -> {
+		vertx.deployVerticle(new BittrexRemoteVerticle(), options, res -> {
 			  if (res.succeeded()) {
 				  ws_id = res.result();
 				  System.out.println("WebsocketVerticle Deployment id is: " + res.result());
@@ -348,12 +349,12 @@ public class BittrexVerticle extends AbstractVerticle{
 	 private SockJSHandler eventBusHandler() {
 		 	SockJSHandlerOptions options = new SockJSHandlerOptions().setHeartbeatInterval(2000);
 		    BridgeOptions boptions = new BridgeOptions()
-		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.UPDATE_ORDERBOOK+":[A-Z]+-[A-Z]+"))
-		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexPriceVerticle.UPDATE_INDICATORS+":[A-Z]+-[A-Z]+"))
-		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.ORDERBOOK_READY+":[A-Z]+-[A-Z]+"))
-		    		.addInboundPermitted(new PermittedOptions().setAddressRegex(BittrexOrderBookVerticle.GET_ORDERBOOK+":[A-Z]+-[A-Z]+"))
+		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(MessageDefinitions.UPDATE_ORDERBOOK+":[A-Z]+-[A-Z]+"))
+		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(MessageDefinitions.UPDATE_INDICATORS+":[A-Z]+-[A-Z]+"))
+		            .addOutboundPermitted(new PermittedOptions().setAddressRegex(MessageDefinitions.ORDERBOOK_READY+":[A-Z]+-[A-Z]+"))
+		    		.addInboundPermitted(new PermittedOptions().setAddressRegex(MessageDefinitions.GET_ORDERBOOK+":[A-Z]+-[A-Z]+"))
 		    		.addInboundPermitted(new PermittedOptions().setAddressRegex("getMovingAverage:[A-Z]+-[A-Z]+"))
-		    		.addInboundPermitted(new PermittedOptions().setAddressRegex("REDEPLOYBITTREXVERTICLES"));
+		    		.addInboundPermitted(new PermittedOptions().setAddressRegex(MessageDefinitions.REDEPLOYBITTREXVERTICLES));
 		    return SockJSHandler.create(vertx, options).bridge(boptions, event -> {
 		         if (event.type() == BridgeEventType.SOCKET_CREATED) {
 		            System.out.println("A socket was created!");
